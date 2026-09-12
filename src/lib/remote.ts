@@ -139,33 +139,38 @@ function mapCustomers(rows: CustomerRow[], addresses: AddressRow[]): Customer[] 
 
 export async function fetchRemoteCatalog(): Promise<Omit<StoreData, 'cart' | 'lastPhone'> | null> {
   if (!supabase) return null
-  const [settingsRes, categoriesRes, productsRes, customersRes, addressesRes, ordersRes] = await Promise.all([
-    supabase.from('store_settings').select('*').eq('id', 1).single(),
-    supabase.from('categories').select('*').order('sort_order'),
-    supabase.from('products').select('*'),
-    supabase.from('customers').select('*'),
-    supabase.from('addresses').select('*'),
-    supabase.from('orders').select('*').order('id'),
-  ])
+  try {
+    const [settingsRes, categoriesRes, productsRes, customersRes, addressesRes, ordersRes] = await Promise.all([
+      supabase.from('store_settings').select('*').eq('id', 1).single(),
+      supabase.from('categories').select('*').order('sort_order'),
+      supabase.from('products').select('*'),
+      supabase.from('customers').select('*'),
+      supabase.from('addresses').select('*'),
+      supabase.from('orders').select('*').order('id'),
+    ])
 
-  if (settingsRes.error || categoriesRes.error || productsRes.error || customersRes.error || addressesRes.error || ordersRes.error) {
-    console.error('Falha ao carregar o cardápio remoto', {
-      settings: settingsRes.error,
-      categories: categoriesRes.error,
-      products: productsRes.error,
-      customers: customersRes.error,
-      addresses: addressesRes.error,
-      orders: ordersRes.error,
-    })
+    if (settingsRes.error || categoriesRes.error || productsRes.error || customersRes.error || addressesRes.error || ordersRes.error) {
+      console.error('Falha ao carregar o cardápio remoto', {
+        settings: settingsRes.error,
+        categories: categoriesRes.error,
+        products: productsRes.error,
+        customers: customersRes.error,
+        addresses: addressesRes.error,
+        orders: ordersRes.error,
+      })
+      return null
+    }
+
+    return {
+      settings: mapSettings(settingsRes.data as SettingsRow),
+      categories: (categoriesRes.data as CategoryRow[]).map(mapCategory),
+      products: (productsRes.data as ProductRow[]).map(mapProduct),
+      customers: mapCustomers(customersRes.data as CustomerRow[], addressesRes.data as AddressRow[]),
+      orders: (ordersRes.data as OrderRow[]).map(mapOrder),
+    }
+  } catch (error) {
+    console.error('Falha ao carregar o cardápio remoto', error)
     return null
-  }
-
-  return {
-    settings: mapSettings(settingsRes.data as SettingsRow),
-    categories: (categoriesRes.data as CategoryRow[]).map(mapCategory),
-    products: (productsRes.data as ProductRow[]).map(mapProduct),
-    customers: mapCustomers(customersRes.data as CustomerRow[], addressesRes.data as AddressRow[]),
-    orders: (ordersRes.data as OrderRow[]).map(mapOrder),
   }
 }
 

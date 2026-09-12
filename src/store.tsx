@@ -152,8 +152,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!hasRemote) return
     let cancelled = false
     void (async () => {
-      await mergeRemote()
-      if (!cancelled) setReady(true)
+      try {
+        await Promise.race([
+          mergeRemote(),
+          new Promise((_, reject) => window.setTimeout(() => reject(new Error('timeout')), 8000)),
+        ])
+      } catch {
+        /* usa o cardápio local se o banco remoto não responder */
+      } finally {
+        if (!cancelled) setReady(true)
+      }
     })()
     const unsubscribe = subscribeRemote(() => {
       void mergeRemote()
