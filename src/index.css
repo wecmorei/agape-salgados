@@ -537,6 +537,26 @@ textarea {
   gap: 10px;
 }
 
+.field-row.city-state {
+  grid-template-columns: 1fr 7.5rem;
+}
+
+.field-hint,
+.cep-status {
+  margin: -4px 0 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.cep-status.ok {
+  color: var(--ok);
+}
+
+.cep-status.warn {
+  color: var(--warn);
+}
+
 .change-box {
   margin-top: 12px;
   padding: 12px;
