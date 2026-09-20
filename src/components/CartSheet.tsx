@@ -79,7 +79,11 @@ export function CartSheet({
   useEffect(() => {
     if (step !== 'address') return
     const digits = zipDigits(address.zip)
-    if (digits.length !== 8 || digits === lastCepLookup.current) return
+    if (digits.length !== 8) {
+      lastCepLookup.current = ''
+      return
+    }
+    if (digits === lastCepLookup.current) return
 
     const controller = new AbortController()
     setCepStatus('loading')
@@ -343,7 +347,11 @@ export function CartSheet({
                 CEP
                 <input
                   value={address.zip}
-                  onChange={(e) => setAddress({ ...address, zip: formatZip(e.target.value) })}
+                  onChange={(e) => {
+                    const zip = formatZip(e.target.value)
+                    if (zipDigits(zip).length < 8) lastCepLookup.current = ''
+                    setAddress({ ...address, zip })
+                  }}
                   inputMode="numeric"
                   autoComplete="postal-code"
                   placeholder="00000-000"
