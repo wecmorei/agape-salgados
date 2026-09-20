@@ -37,6 +37,7 @@ export type Address = {
   complement: string
   neighborhood: string
   city: string
+  state: string
   zip: string
 }
 

@@ -1,4 +1,4 @@
-import { addressKey, createSeed, normalizeOrder } from '../seed'
+import { addressKey, createSeed, normalizeAddress, normalizeOrder } from '../seed'
 import type {
   Address,
   CartLine,
@@ -53,6 +53,7 @@ type AddressRow = {
   complement: string
   neighborhood: string
   city: string
+  state?: string | null
   zip: string
 }
 
@@ -104,7 +105,7 @@ function mapOrder(row: OrderRow): Order {
   return normalizeOrder({
     id: String(row.id),
     phone: row.phone,
-    address: row.address,
+    address: normalizeAddress(row.address),
     paymentMethod: row.payment_method,
     changeFor: row.change_for,
     items: row.items ?? [],
@@ -120,15 +121,18 @@ function mapCustomers(rows: CustomerRow[], addresses: AddressRow[]): Customer[] 
   return rows.map((row) => {
     const list = addresses
       .filter((item) => item.phone === row.phone)
-      .map((item) => ({
-        id: item.id,
-        street: item.street,
-        number: item.number,
-        complement: item.complement,
-        neighborhood: item.neighborhood,
-        city: item.city,
-        zip: item.zip,
-      }))
+      .map((item) =>
+        normalizeAddress({
+          id: item.id,
+          street: item.street,
+          number: item.number,
+          complement: item.complement,
+          neighborhood: item.neighborhood,
+          city: item.city,
+          state: item.state ?? '',
+          zip: item.zip,
+        }),
+      )
     return {
       phone: row.phone,
       addresses: list,

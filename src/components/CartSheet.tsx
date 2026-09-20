@@ -1,16 +1,26 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  BRAZILIAN_STATES,
+  formatZip,
+  isValidZip,
+  lookupCep,
+  zipDigits,
+} from '../lib/cep'
 import {
   emptyAddress,
   formatAddress,
   formatBRL,
   formatPhone,
   isValidPhone,
+  normalizeAddress,
   normalizePhone,
   parseReais,
   reaisInput,
 } from '../seed'
 import { cartTotals, useStore } from '../store'
 import type { Address, Order, PaymentMethod } from '../types'
+
+type CepStatus = 'idle' | 'loading' | 'ok' | 'not-found' | 'error'
 
 type Step = 'cart' | 'phone' | 'address' | 'payment' | 'done'
 
@@ -44,6 +54,8 @@ export function CartSheet({
   const [error, setError] = useState('')
   const [order, setOrder] = useState<Order | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [cepStatus, setCepStatus] = useState<CepStatus>('idle')
+  const lastCepLookup = useRef('')
 
   const customer = useMemo(
     () => findCustomer(normalizePhone(phone)),
@@ -60,13 +72,71 @@ export function CartSheet({
     setNeedsChange(false)
     setChangeText('')
     setAddingNew(false)
+    setCepStatus('idle')
+    lastCepLookup.current = ''
   }, [open, startOnCheckout])
+
+  useEffect(() => {
+    if (step !== 'address') return
+    const digits = zipDigits(address.zip)
+    if (digits.length !== 8 || digits === lastCepLookup.current) return
+
+    const controller = new AbortController()
+    setCepStatus('loading')
+
+    void lookupCep(digits, controller.signal)
+      .then((result) => {
+        lastCepLookup.current = digits
+        if (!result) {
+          setCepStatus('not-found')
+          return
+        }
+        setCepStatus('ok')
+        setAddress((current) => {
+          if (zipDigits(current.zip) !== digits) return current
+          return {
+            ...current,
+            street: result.street,
+            neighborhood: result.neighborhood,
+            city: result.city,
+            state: result.state,
+            zip: formatZip(digits),
+          }
+        })
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        lastCepLookup.current = digits
+        setCepStatus('error')
+      })
+
+    return () => controller.abort()
+  }, [address.zip, step])
 
   if (!open) return null
 
   function close() {
     setStep('cart')
     onClose()
+  }
+
+  function fillSavedAddress(item: Address) {
+    const next = normalizeAddress({ ...item, zip: formatZip(item.zip ?? '') })
+    setAddress(next)
+    if (next.state && isValidZip(next.zip)) {
+      lastCepLookup.current = zipDigits(next.zip)
+      setCepStatus('ok')
+      return
+    }
+    lastCepLookup.current = ''
+    setCepStatus('idle')
+  }
+
+  function fillNewAddress() {
+    setAddress(emptyAddress())
+    lastCepLookup.current = ''
+    setCepStatus('idle')
   }
 
   function goAddress() {
@@ -80,11 +150,11 @@ export function CartSheet({
     if (found && found.addresses.length > 0) {
       const last =
         found.addresses.find((item) => item.id === found.lastAddressId) ?? found.addresses[0]
-      setAddress({ ...last })
+      fillSavedAddress(last)
       setSelectedId(last.id)
       setAddingNew(false)
     } else {
-      setAddress(emptyAddress())
+      fillNewAddress()
       setSelectedId(null)
       setAddingNew(true)
     }
@@ -92,8 +162,18 @@ export function CartSheet({
   }
 
   function goPayment() {
-    if (!address.street.trim() || !address.number.trim() || !address.neighborhood.trim() || !address.city.trim()) {
-      setError('Preencha rua, número, bairro e cidade.')
+    if (!isValidZip(address.zip)) {
+      setError('Informe um CEP válido.')
+      return
+    }
+    if (
+      !address.street.trim() ||
+      !address.number.trim() ||
+      !address.neighborhood.trim() ||
+      !address.city.trim() ||
+      !address.state.trim()
+    ) {
+      setError('Preencha rua, número, bairro, cidade e estado.')
       return
     }
     setError('')
@@ -139,6 +219,8 @@ export function CartSheet({
     payment: 'Pagamento',
     done: 'Pedido confirmado',
   }[step]
+
+  const shownCepStatus = isValidZip(address.zip) ? cepStatus : 'idle'
 
   return (
     <>
@@ -230,7 +312,7 @@ export function CartSheet({
                         className={`address-card ${!addingNew && selectedId === item.id ? 'selected' : ''}`}
                         onClick={() => {
                           setSelectedId(item.id)
-                          setAddress({ ...item })
+                          fillSavedAddress(item)
                           setAddingNew(false)
                           setError('')
                         }}
@@ -247,7 +329,8 @@ export function CartSheet({
                   onClick={() => {
                     setAddingNew(true)
                     setSelectedId(null)
-                    setAddress(emptyAddress())
+                    fillNewAddress()
+                    setError('')
                   }}
                 >
                   Adicionar outro endereço
@@ -256,6 +339,31 @@ export function CartSheet({
             )}
 
             <div className="address-form">
+              <label>
+                CEP
+                <input
+                  value={address.zip}
+                  onChange={(e) => setAddress({ ...address, zip: formatZip(e.target.value) })}
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  placeholder="00000-000"
+                  autoFocus={addingNew}
+                  maxLength={9}
+                />
+              </label>
+              {shownCepStatus === 'loading' && <p className="cep-status">Buscando endereço…</p>}
+              {shownCepStatus === 'ok' && (
+                <p className="cep-status ok">Endereço encontrado. Confira e informe o número.</p>
+              )}
+              {shownCepStatus === 'not-found' && (
+                <p className="cep-status warn">CEP não encontrado. Preencha o endereço manualmente.</p>
+              )}
+              {shownCepStatus === 'error' && (
+                <p className="cep-status warn">Não foi possível consultar o CEP. Preencha o endereço manualmente.</p>
+              )}
+              {shownCepStatus === 'idle' && (
+                <p className="field-hint">Ao preencher o CEP, rua, bairro, cidade e estado entram sozinhos.</p>
+              )}
               <label>
                 Rua
                 <input
@@ -270,6 +378,7 @@ export function CartSheet({
                   <input
                     value={address.number}
                     onChange={(e) => setAddress({ ...address, number: e.target.value })}
+                    autoComplete="address-line2"
                   />
                 </label>
                 <label>
@@ -288,28 +397,36 @@ export function CartSheet({
                   onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
                 />
               </label>
-              <div className="field-row">
+              <div className="field-row city-state">
                 <label>
                   Cidade
                   <input
                     value={address.city}
                     onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                    autoComplete="address-level2"
                   />
                 </label>
                 <label>
-                  CEP
-                  <input
-                    value={address.zip}
-                    onChange={(e) => setAddress({ ...address, zip: e.target.value })}
-                    inputMode="numeric"
-                  />
+                  Estado
+                  <select
+                    value={address.state}
+                    onChange={(e) => setAddress({ ...address, state: e.target.value })}
+                    autoComplete="address-level1"
+                  >
+                    <option value="">UF</option>
+                    {BRAZILIAN_STATES.map((uf) => (
+                      <option key={uf} value={uf}>
+                        {uf}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
             </div>
 
             {error && <p className="warn">{error}</p>}
             <div className="checkout-actions">
-              <button className="btn dark" type="submit">
+              <button className="btn dark" type="submit" disabled={shownCepStatus === 'loading'}>
                 Continuar
               </button>
               <button className="btn ghost" type="button" onClick={() => setStep('phone')}>
