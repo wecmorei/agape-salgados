@@ -2,8 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { KitchenBoard, pendingOrderCount } from '../components/KitchenBoard'
 import { DEFAULT_PIN, formatBRL, parseReais, reaisInput } from '../seed'
+import { hasRemote, uploadProductImage } from '../lib/remote'
 import { useStore } from '../store'
 import type { Category, Product } from '../types'
+
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 
 const emptyProduct = (categoryId: string): Product => ({
   id: crypto.randomUUID(),
@@ -17,6 +20,15 @@ const emptyProduct = (categoryId: string): Product => ({
 })
 
 type Tab = 'pedidos' | 'produtos' | 'categorias' | 'loja'
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ''))
+    reader.onerror = () => reject(reader.error ?? new Error('Falha ao ler imagem'))
+    reader.readAsDataURL(file)
+  })
+}
 
 function playKitchenPing() {
   const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -43,6 +55,10 @@ export function AdminPage() {
   const [tab, setTab] = useState<Tab>('pedidos')
   const [editing, setEditing] = useState<Product | null>(null)
   const [priceText, setPriceText] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState('')
+  const [productError, setProductError] = useState('')
+  const [savingProduct, setSavingProduct] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [notifyPerm, setNotifyPerm] = useState<NotificationPermission>(
     typeof Notification === 'undefined' ? 'denied' : Notification.permission,
@@ -59,6 +75,12 @@ export function AdminPage() {
     [data.categories],
   )
   const pending = pendingOrderCount(data.orders)
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
+    }
+  }, [imagePreview])
 
   useEffect(() => {
     if (!authed) {
@@ -104,6 +126,57 @@ export function AdminPage() {
     const timer = window.setTimeout(() => setToast(null), 6000)
     return () => window.clearTimeout(timer)
   }, [toast])
+
+  function openProductForm(product: Product) {
+    setEditing(product)
+    setPriceText(reaisInput(product.price))
+    setImageFile(null)
+    setImagePreview('')
+    setProductError('')
+  }
+
+  function closeProductForm() {
+    setEditing(null)
+    setImageFile(null)
+    setImagePreview('')
+    setProductError('')
+    setSavingProduct(false)
+  }
+
+  function chooseImage(file: File | undefined) {
+    if (!file) return
+    if (!file.type.startsWith('image/') || (file.type && !IMAGE_TYPES.has(file.type))) {
+      setProductError('Selecione uma imagem em JPG, PNG, WebP ou GIF.')
+      return
+    }
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setProductError('')
+  }
+
+  async function submitProduct() {
+    if (!editing?.name.trim() || savingProduct) return
+    setSavingProduct(true)
+    setProductError('')
+    try {
+      let image = editing.image
+      if (imageFile) {
+        image = hasRemote
+          ? await uploadProductImage(imageFile, editing.id)
+          : await fileToDataUrl(imageFile)
+      }
+      upsertProduct({ ...editing, image, price: parseReais(priceText) })
+      closeProductForm()
+    } catch (error) {
+      console.error('Falha ao salvar imagem do produto', error)
+      setProductError(
+        hasRemote
+          ? 'Não foi possível enviar a imagem. Verifique se o bucket público product-images existe no Supabase.'
+          : 'Não foi possível carregar a imagem selecionada.',
+      )
+      setSavingProduct(false)
+    }
+  }
 
   if (!authed) {
     return (
@@ -213,9 +286,7 @@ export function AdminPage() {
             <form
               onSubmit={(e) => {
                 e.preventDefault()
-                if (!editing?.name.trim()) return
-                upsertProduct({ ...editing, price: parseReais(priceText) })
-                setEditing(null)
+                void submitProduct()
               }}
             >
               <h2 className="section-title" style={{ marginTop: 0 }}>
@@ -227,8 +298,7 @@ export function AdminPage() {
                   type="button"
                   onClick={() => {
                     const next = emptyProduct(sortedCategories[0]?.id ?? 'geral')
-                    setEditing(next)
-                    setPriceText(reaisInput(next.price))
+                    openProductForm(next)
                   }}
                 >
                   Adicionar item
@@ -273,13 +343,29 @@ export function AdminPage() {
                     </select>
                   </label>
                   <label>
-                    URL da foto
+                    Foto do item
                     <input
-                      value={editing.image}
-                      onChange={(e) => setEditing({ ...editing, image: e.target.value })}
-                      placeholder="https://..."
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={(e) => chooseImage(e.target.files?.[0])}
                     />
                   </label>
+                  {(imagePreview || editing.image) && (
+                    <div className="image-preview">
+                      <img src={imagePreview || editing.image} alt="" />
+                      <small>
+                        {imageFile
+                          ? `Selecionada: ${imageFile.name}`
+                          : 'Imagem atual do item. Selecione outro arquivo para trocar.'}
+                      </small>
+                    </div>
+                  )}
+                  <p className="muted">
+                    {hasRemote
+                      ? 'A imagem será enviada ao salvar o item.'
+                      : 'No modo local, a imagem ficará salva apenas neste navegador.'}
+                  </p>
+                  {productError && <p className="warn">{productError}</p>}
                   <label className="check">
                     <input
                       type="checkbox"
@@ -297,10 +383,10 @@ export function AdminPage() {
                     Destaque
                   </label>
                   <div className="row-actions">
-                    <button className="btn" type="submit">
-                      Salvar
+                    <button className="btn" type="submit" disabled={savingProduct}>
+                      {savingProduct ? 'Salvando…' : 'Salvar'}
                     </button>
-                    <button className="btn ghost" type="button" onClick={() => setEditing(null)}>
+                    <button className="btn ghost" type="button" onClick={closeProductForm}>
                       Cancelar
                     </button>
                   </div>
@@ -326,8 +412,7 @@ export function AdminPage() {
                       className="btn ghost"
                       type="button"
                       onClick={() => {
-                        setEditing(product)
-                        setPriceText(reaisInput(product.price))
+                        openProductForm(product)
                       }}
                     >
                       Editar
