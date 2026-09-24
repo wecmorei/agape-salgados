@@ -313,7 +313,10 @@ export function formatBRL(cents: number) {
 }
 
 export function parseReais(value: string) {
-  const normalized = value.replace(/\s/g, '').replace('R$', '').replace(/\./g, '').replace(',', '.')
+  const cleaned = value.replace(/\s/g, '').replace('R$', '')
+  const normalized = cleaned.includes(',')
+    ? cleaned.replace(/\./g, '').replace(',', '.')
+    : cleaned.replace(/\.(?=\d{3}(?:\.|$))/g, '')
   const n = Number(normalized)
   if (!Number.isFinite(n) || n < 0) return 0
   return Math.round(n * 100)
