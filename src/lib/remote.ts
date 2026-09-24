@@ -13,6 +13,8 @@ import type {
 } from '../types'
 import { supabase } from './supabase'
 
+const PRODUCT_IMAGES_BUCKET = 'product-images'
+
 type SettingsRow = {
   id: number
   name: string
@@ -71,6 +73,15 @@ type OrderRow = {
 }
 
 export const hasRemote = Boolean(supabase)
+
+function extensionFromFile(file: File) {
+  const fromName = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (fromName) return fromName === 'jpeg' ? 'jpg' : fromName
+  if (file.type === 'image/png') return 'png'
+  if (file.type === 'image/webp') return 'webp'
+  if (file.type === 'image/gif') return 'gif'
+  return 'jpg'
+}
 
 function mapSettings(row: SettingsRow): Settings {
   return {
@@ -216,6 +227,17 @@ export async function saveProduct(product: Product) {
     highlight: product.highlight,
   })
   if (error) throw error
+}
+
+export async function uploadProductImage(file: File, productId: string) {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const path = `${productId}/${crypto.randomUUID()}.${extensionFromFile(file)}`
+  const { error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).upload(path, file, {
+    contentType: file.type || 'application/octet-stream',
+  })
+  if (error) throw error
+  const { data } = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(path)
+  return data.publicUrl
 }
 
 export async function deleteProduct(id: string) {

@@ -434,6 +434,26 @@ textarea {
   border-radius: 10px;
 }
 
+.image-preview {
+  display: grid;
+  gap: 8px;
+  margin: -2px 0 12px;
+}
+
+.image-preview img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #e8d5c4;
+}
+
+.image-preview small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .row-actions {
   display: flex;
   gap: 8px;
