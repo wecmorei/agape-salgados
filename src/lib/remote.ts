@@ -13,6 +13,8 @@ import type {
 } from '../types'
 import { supabase } from './supabase'
 
+const LOGO_STORAGE_KEY = 'agape-salgados:logo'
+
 type SettingsRow = {
   id: number
   name: string
@@ -21,6 +23,7 @@ type SettingsRow = {
   min_order: number
   admin_pin: string
   open: boolean
+  logo?: string | null
 }
 
 type CategoryRow = {
@@ -72,7 +75,27 @@ type OrderRow = {
 
 export const hasRemote = Boolean(supabase)
 
+function readStoredLogo() {
+  try {
+    return localStorage.getItem(LOGO_STORAGE_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function writeStoredLogo(logo: string) {
+  try {
+    if (logo) localStorage.setItem(LOGO_STORAGE_KEY, logo)
+    else localStorage.removeItem(LOGO_STORAGE_KEY)
+  } catch {
+    /* o cardápio local ainda guarda o logotipo */
+  }
+}
+
 function mapSettings(row: SettingsRow): Settings {
+  const hasLogoColumn = Object.prototype.hasOwnProperty.call(row, 'logo')
+  const logo = hasLogoColumn ? (row.logo ?? '') : readStoredLogo()
+  if (hasLogoColumn) writeStoredLogo(logo)
   return {
     name: row.name,
     tagline: row.tagline,
@@ -80,7 +103,13 @@ function mapSettings(row: SettingsRow): Settings {
     minOrder: row.min_order,
     adminPin: row.admin_pin,
     open: row.open,
+    logo,
   }
+}
+
+function missingLogoColumn(error: { message?: string; code?: string }) {
+  const message = `${error.code ?? ''} ${error.message ?? ''}`.toLowerCase()
+  return message.includes('logo') && (message.includes('column') || message.includes('schema') || message.includes('pgrst204'))
 }
 
 function mapCategory(row: CategoryRow): Category {
@@ -183,7 +212,18 @@ export async function saveSettings(patch: Partial<Settings>) {
   if (patch.minOrder !== undefined) row.min_order = patch.minOrder
   if (patch.adminPin !== undefined) row.admin_pin = patch.adminPin
   if (patch.open !== undefined) row.open = patch.open
+  if (patch.logo !== undefined) {
+    writeStoredLogo(patch.logo)
+    row.logo = patch.logo
+  }
   const { error } = await supabase.from('store_settings').update(row).eq('id', 1)
+  if (error && patch.logo !== undefined && missingLogoColumn(error)) {
+    delete row.logo
+    if (Object.keys(row).length === 0) return
+    const retry = await supabase.from('store_settings').update(row).eq('id', 1)
+    if (retry.error) throw retry.error
+    return
+  }
   if (error) throw error
 }
 

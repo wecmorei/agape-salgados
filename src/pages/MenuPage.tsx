@@ -113,8 +113,13 @@ export function MenuPage() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <h1>{data.settings.name}</h1>
-          <p>{data.settings.tagline}</p>
+          {data.settings.logo && (
+            <img className="brand-logo" src={data.settings.logo} alt="" />
+          )}
+          <div>
+            <h1>{data.settings.name}</h1>
+            <p>{data.settings.tagline}</p>
+          </div>
         </div>
         <span className={`badge ${data.settings.open ? '' : 'closed'}`}>
           {data.settings.open ? 'Aberto' : 'Fechado'}

@@ -28,6 +28,7 @@ export type Settings = {
   minOrder: number
   adminPin: string
   open: boolean
+  logo: string
 }
 
 export type Address = {

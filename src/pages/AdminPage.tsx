@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { KitchenBoard, pendingOrderCount } from '../components/KitchenBoard'
+import { readImageFile } from '../lib/image'
 import { DEFAULT_PIN, formatBRL, parseReais, reaisInput } from '../seed'
 import { useStore } from '../store'
 import type { Category, Product } from '../types'
@@ -53,6 +54,9 @@ export function AdminPage() {
     order: data.categories.length + 1,
   })
   const knownOrderIds = useRef<Set<string> | null>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [logoBusy, setLogoBusy] = useState(false)
+  const [logoError, setLogoError] = useState('')
 
   const sortedCategories = useMemo(
     () => data.categories.slice().sort((a, b) => a.order - b.order),
@@ -151,9 +155,14 @@ export function AdminPage() {
     <div className="app-shell">
       <div className="admin">
         <header className="topbar">
-          <div>
-            <h1>Painel</h1>
-            <p style={{ color: 'var(--muted)', margin: 0 }}>{data.settings.name}</p>
+          <div className="brand">
+            {data.settings.logo && (
+              <img className="brand-logo" src={data.settings.logo} alt="" />
+            )}
+            <div>
+              <h1>Painel</h1>
+              <p style={{ color: 'var(--muted)', margin: 0 }}>{data.settings.name}</p>
+            </div>
           </div>
           <div className="admin-actions">
             <button
@@ -272,14 +281,10 @@ export function AdminPage() {
                       ))}
                     </select>
                   </label>
-                  <label>
-                    URL da foto
-                    <input
-                      value={editing.image}
-                      onChange={(e) => setEditing({ ...editing, image: e.target.value })}
-                      placeholder="https://..."
-                    />
-                  </label>
+                  <PhotoField
+                    image={editing.image}
+                    onChange={(image) => setEditing({ ...editing, image })}
+                  />
                   <label className="check">
                     <input
                       type="checkbox"
@@ -396,6 +401,61 @@ export function AdminPage() {
         )}
 
         {tab === 'loja' && (
+          <>
+          <section className="logo-panel">
+            <h2 className="section-title" style={{ marginTop: 0 }}>
+              Logotipo
+            </h2>
+            <p className="muted">Aparece no topo do cardápio. Envie o arquivo da imagem.</p>
+            {data.settings.logo ? (
+              <img className="logo-preview" src={data.settings.logo} alt="Logotipo da loja" />
+            ) : (
+              <p className="muted">Nenhum logotipo cadastrado.</p>
+            )}
+            <div className="row-actions">
+              <button
+                className="btn"
+                type="button"
+                disabled={logoBusy}
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {logoBusy ? 'Enviando…' : data.settings.logo ? 'Editar logotipo' : 'Incluir logotipo'}
+              </button>
+              {data.settings.logo && (
+                <button
+                  className="btn ghost"
+                  type="button"
+                  onClick={() => {
+                    setLogoError('')
+                    setSettings({ logo: '' })
+                  }}
+                >
+                  Remover
+                </button>
+              )}
+            </div>
+            <input
+              ref={logoInputRef}
+              className="file-input"
+              type="file"
+              accept="image/*"
+              aria-label="Arquivo do logotipo"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (!file) return
+                setLogoBusy(true)
+                setLogoError('')
+                void readImageFile(file, 'logo')
+                  .then((logo) => setSettings({ logo }))
+                  .catch((err: unknown) => {
+                    setLogoError(err instanceof Error ? err.message : 'Não foi possível enviar o logotipo.')
+                  })
+                  .finally(() => setLogoBusy(false))
+              }}
+            />
+            {logoError && <p className="warn">{logoError}</p>}
+          </section>
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -450,6 +510,7 @@ export function AdminPage() {
               Restaurar cardápio de exemplo
             </button>
           </form>
+          </>
         )}
       </div>
 
@@ -458,6 +519,75 @@ export function AdminPage() {
           {toast}
         </div>
       )}
+    </div>
+  )
+}
+
+function PhotoField({ image, onChange }: { image: string; onChange: (image: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const uploaded = image.startsWith('data:')
+
+  return (
+    <div className="image-field">
+      <span className="image-field-label">Foto do item</span>
+      {image ? (
+        <img className="image-preview" src={image} alt="" />
+      ) : (
+        <p className="muted">Nenhuma foto.</p>
+      )}
+      <div className="row-actions">
+        <button
+          className="btn"
+          type="button"
+          disabled={busy}
+          onClick={() => inputRef.current?.click()}
+        >
+          {busy ? 'Enviando…' : image ? 'Trocar foto' : 'Enviar foto'}
+        </button>
+        {image && (
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => {
+              setError('')
+              onChange('')
+            }}
+          >
+            Remover
+          </button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        className="file-input"
+        type="file"
+        accept="image/*"
+        aria-label="Arquivo da foto do item"
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+          if (!file) return
+          setBusy(true)
+          setError('')
+          void readImageFile(file, 'photo')
+            .then(onChange)
+            .catch((err: unknown) => {
+              setError(err instanceof Error ? err.message : 'Não foi possível enviar a foto.')
+            })
+            .finally(() => setBusy(false))
+        }}
+      />
+      <label>
+        Ou cole o link da foto
+        <input
+          value={uploaded ? '' : image}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={uploaded ? 'Foto enviada deste aparelho' : 'https://...'}
+        />
+      </label>
+      {error && <p className="warn">{error}</p>}
     </div>
   )
 }

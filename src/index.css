@@ -71,6 +71,23 @@ a {
   margin-bottom: 22px;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-logo {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+}
+
 .brand h1 {
   font-family: var(--serif);
   font-size: clamp(1.8rem, 4vw, 2.6rem);
@@ -432,6 +449,61 @@ textarea {
   height: 64px;
   object-fit: cover;
   border-radius: 10px;
+}
+
+.image-field {
+  margin-bottom: 12px;
+}
+
+.image-field-label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.image-preview,
+.logo-preview {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  margin-bottom: 10px;
+}
+
+.logo-preview {
+  object-fit: contain;
+  width: 96px;
+  height: 96px;
+}
+
+.logo-panel {
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.image-field .row-actions,
+.logo-panel .row-actions {
+  margin-bottom: 12px;
+}
+
+.image-field .row-actions .btn,
+.logo-panel .row-actions .btn {
+  width: auto;
 }
 
 .row-actions {

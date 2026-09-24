@@ -38,6 +38,7 @@ export function createSeed(): StoreData {
       minOrder: 2500,
       adminPin: DEFAULT_PIN,
       open: true,
+      logo: '',
     },
     categories: [
       { id: 'fritos', name: 'Fritos', order: 1 },

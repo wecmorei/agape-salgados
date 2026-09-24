@@ -109,6 +109,7 @@ function readStored(): StoreData | null {
     return {
       ...seed,
       ...parsed,
+      settings: { ...seed.settings, ...parsed.settings, logo: parsed.settings.logo ?? '' },
       cart: parsed.cart ?? [],
       customers: parsed.customers ?? [],
       orders: (parsed.orders ?? []).map(normalizeOrder),
