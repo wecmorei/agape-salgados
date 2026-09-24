@@ -431,6 +431,61 @@ textarea {
   gap: 18px;
 }
 
+.add-item {
+  width: auto;
+  margin-bottom: 8px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(28, 20, 16, 0.42);
+}
+
+.modal {
+  width: min(480px, 100%);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  background: var(--paper);
+  border-radius: 24px;
+  padding: 20px 20px 16px;
+  box-shadow: 0 24px 60px rgba(28, 20, 16, 0.22);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.45rem;
+}
+
+.modal-close {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.modal .row-actions .btn {
+  width: auto;
+  flex: 1;
+}
+
 .product-row {
   display: grid;
   grid-template-columns: 64px 1fr;

@@ -109,6 +109,20 @@ export function AdminPage() {
     return () => window.clearTimeout(timer)
   }, [toast])
 
+  useEffect(() => {
+    if (!editing) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setEditing(null)
+    }
+    document.addEventListener('keydown', onKey)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [editing])
+
   if (!authed) {
     return (
       <div className="app-shell">
@@ -218,132 +232,139 @@ export function AdminPage() {
         {tab === 'pedidos' && <KitchenBoard />}
 
         {tab === 'produtos' && (
-          <div className="admin-grid">
+          <div>
+            <button
+              className="btn add-item"
+              type="button"
+              onClick={() => {
+                const next = emptyProduct(sortedCategories[0]?.id ?? 'geral')
+                setEditing(next)
+                setPriceText(reaisInput(next.price))
+              }}
+            >
+              Adicionar item
+            </button>
+            {data.products.map((product) => (
+              <div className="product-row" key={product.id}>
+                <img src={product.image || undefined} alt="" />
+                <div>
+                  <strong>{product.name}</strong>
+                  <div>
+                    <small>
+                      {formatCategory(product.categoryId, data.categories)} · R$ {reaisInput(product.price)}
+                      {!product.available ? ' · pausado' : ''}
+                    </small>
+                  </div>
+                </div>
+                <div className="row-actions">
+                  <button
+                    className="btn ghost"
+                    type="button"
+                    onClick={() => {
+                      setEditing(product)
+                      setPriceText(reaisInput(product.price))
+                    }}
+                  >
+                    Editar
+                  </button>
+                  <button className="btn ghost" type="button" onClick={() => removeProduct(product.id)}>
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {editing && tab === 'produtos' && (
+          <div className="modal-backdrop" onClick={() => setEditing(null)}>
             <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (!editing?.name.trim()) return
+              className="modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="item-form-title"
+              onClick={(event) => event.stopPropagation()}
+              onSubmit={(event) => {
+                event.preventDefault()
+                if (!editing.name.trim()) return
                 upsertProduct({ ...editing, price: parseReais(priceText) })
                 setEditing(null)
               }}
             >
-              <h2 className="section-title" style={{ marginTop: 0 }}>
-                {editing ? 'Editar item' : 'Novo item'}
-              </h2>
-              {!editing && (
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => {
-                    const next = emptyProduct(sortedCategories[0]?.id ?? 'geral')
-                    setEditing(next)
-                    setPriceText(reaisInput(next.price))
-                  }}
-                >
-                  Adicionar item
+              <div className="modal-head">
+                <h2 id="item-form-title">
+                  {data.products.some((product) => product.id === editing.id) ? 'Editar item' : 'Novo item'}
+                </h2>
+                <button className="modal-close" type="button" aria-label="Fechar" onClick={() => setEditing(null)}>
+                  ×
                 </button>
-              )}
-              {editing && (
-                <>
-                  <label>
-                    Nome
-                    <input
-                      value={editing.name}
-                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Descrição
-                    <textarea
-                      value={editing.description}
-                      onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                    />
-                  </label>
-                  <label>
-                    Preço (R$)
-                    <input
-                      value={priceText}
-                      onChange={(e) => setPriceText(e.target.value)}
-                      inputMode="decimal"
-                    />
-                  </label>
-                  <label>
-                    Categoria
-                    <select
-                      value={editing.categoryId}
-                      onChange={(e) => setEditing({ ...editing, categoryId: e.target.value })}
-                    >
-                      {sortedCategories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <PhotoField
-                    image={editing.image}
-                    onChange={(image) => setEditing({ ...editing, image })}
-                  />
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={editing.available}
-                      onChange={(e) => setEditing({ ...editing, available: e.target.checked })}
-                    />
-                    Disponível
-                  </label>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={editing.highlight}
-                      onChange={(e) => setEditing({ ...editing, highlight: e.target.checked })}
-                    />
-                    Destaque
-                  </label>
-                  <div className="row-actions">
-                    <button className="btn" type="submit">
-                      Salvar
-                    </button>
-                    <button className="btn ghost" type="button" onClick={() => setEditing(null)}>
-                      Cancelar
-                    </button>
-                  </div>
-                </>
-              )}
+              </div>
+              <label>
+                Nome
+                <input
+                  value={editing.name}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  required
+                  autoFocus
+                />
+              </label>
+              <label>
+                Descrição
+                <textarea
+                  value={editing.description}
+                  onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                />
+              </label>
+              <label>
+                Preço (R$)
+                <input
+                  value={priceText}
+                  onChange={(e) => setPriceText(e.target.value)}
+                  inputMode="decimal"
+                />
+              </label>
+              <label>
+                Categoria
+                <select
+                  value={editing.categoryId}
+                  onChange={(e) => setEditing({ ...editing, categoryId: e.target.value })}
+                >
+                  {sortedCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <PhotoField
+                image={editing.image}
+                onChange={(image) => setEditing({ ...editing, image })}
+              />
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={editing.available}
+                  onChange={(e) => setEditing({ ...editing, available: e.target.checked })}
+                />
+                Disponível
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={editing.highlight}
+                  onChange={(e) => setEditing({ ...editing, highlight: e.target.checked })}
+                />
+                Destaque
+              </label>
+              <div className="row-actions">
+                <button className="btn" type="submit">
+                  Salvar
+                </button>
+                <button className="btn ghost" type="button" onClick={() => setEditing(null)}>
+                  Cancelar
+                </button>
+              </div>
             </form>
-
-            <div>
-              {data.products.map((product) => (
-                <div className="product-row" key={product.id}>
-                  <img src={product.image || undefined} alt="" />
-                  <div>
-                    <strong>{product.name}</strong>
-                    <div>
-                      <small>
-                        {formatCategory(product.categoryId, data.categories)} · R$ {reaisInput(product.price)}
-                        {!product.available ? ' · pausado' : ''}
-                      </small>
-                    </div>
-                  </div>
-                  <div className="row-actions">
-                    <button
-                      className="btn ghost"
-                      type="button"
-                      onClick={() => {
-                        setEditing(product)
-                        setPriceText(reaisInput(product.price))
-                      }}
-                    >
-                      Editar
-                    </button>
-                    <button className="btn ghost" type="button" onClick={() => removeProduct(product.id)}>
-                      Excluir
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
