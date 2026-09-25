@@ -1,4 +1,4 @@
-import type { Address, Order, OrderStatus, PaymentMethod, StoreData } from './types'
+import type { Address, Order, OrderStatus, PaymentMethod, Product, StoreData } from './types'
 
 export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   pix: 'Pix',
@@ -30,6 +30,22 @@ export const STORAGE_KEY = 'agape-salgados:v1'
 export const CART_STORAGE_KEY = 'agape-salgados:cart:v1'
 export const DEFAULT_PIN = '1234'
 
+// Custo estimado inicial por produto (a loja ajusta na aba Produtos).
+// Bebidas de revenda têm custo maior; salgados ~40% do preço.
+const COST_RATIO: Record<string, number> = {
+  coca: 0.62,
+  guarana: 0.6,
+  agua: 0.45,
+  suco: 0.35,
+}
+
+function withCosts(items: Omit<Product, 'cost'>[]): Product[] {
+  return items.map((item) => ({
+    ...item,
+    cost: Math.round(item.price * (COST_RATIO[item.id] ?? 0.4)),
+  }))
+}
+
 export function createSeed(): StoreData {
   return {
     settings: {
@@ -48,7 +64,7 @@ export function createSeed(): StoreData {
       { id: 'drinks', name: 'Bebidas', order: 4 },
       { id: 'doces', name: 'Doces', order: 5 },
     ],
-    products: [
+    products: withCosts([
       {
         id: 'coxinha-frango',
         categoryId: 'fritos',
@@ -258,7 +274,7 @@ export function createSeed(): StoreData {
         available: true,
         highlight: false,
       },
-    ],
+    ]),
     cart: [],
     customers: [],
     orders: [],

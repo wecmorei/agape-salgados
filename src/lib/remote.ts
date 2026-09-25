@@ -38,6 +38,7 @@ type ProductRow = {
   name: string
   description: string
   price: number
+  cost?: number | null
   image: string
   available: boolean
   highlight: boolean
@@ -108,9 +109,16 @@ function mapSettings(row: SettingsRow): Settings {
   }
 }
 
-function missingLogoColumn(error: { message?: string; code?: string }) {
+function missingColumn(error: { message?: string; code?: string }, column: string) {
   const message = `${error.code ?? ''} ${error.message ?? ''}`.toLowerCase()
-  return message.includes('logo') && (message.includes('column') || message.includes('schema') || message.includes('pgrst204'))
+  return (
+    message.includes(column) &&
+    (message.includes('column') || message.includes('schema') || message.includes('pgrst204'))
+  )
+}
+
+function missingLogoColumn(error: { message?: string; code?: string }) {
+  return missingColumn(error, 'logo')
 }
 
 function mapCategory(row: CategoryRow): Category {
@@ -124,6 +132,7 @@ function mapProduct(row: ProductRow): Product {
     name: row.name,
     description: row.description,
     price: row.price,
+    cost: row.cost ?? 0,
     image: row.image,
     available: row.available,
     highlight: row.highlight,
@@ -249,16 +258,24 @@ export async function deleteCategory(id: string) {
 
 export async function saveProduct(product: Product) {
   if (!supabase) return
-  const { error } = await supabase.from('products').upsert({
+  const row = {
     id: product.id,
     category_id: product.categoryId,
     name: product.name,
     description: product.description,
     price: product.price,
+    cost: product.cost,
     image: product.image,
     available: product.available,
     highlight: product.highlight,
-  })
+  }
+  const { error } = await supabase.from('products').upsert(row)
+  if (error && missingColumn(error, 'cost')) {
+    const { cost: _cost, ...rest } = row
+    const retry = await supabase.from('products').upsert(rest)
+    if (retry.error) throw retry.error
+    return
+  }
   if (error) throw error
 }
 
@@ -283,18 +300,23 @@ export async function replaceCatalog() {
     })),
   )
   if (catInsert) throw catInsert
-  const { error: prodInsert } = await supabase.from('products').insert(
-    seed.products.map((product) => ({
-      id: product.id,
-      category_id: product.categoryId,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      image: product.image,
-      available: product.available,
-      highlight: product.highlight,
-    })),
-  )
+  const productRows = seed.products.map((product) => ({
+    id: product.id,
+    category_id: product.categoryId,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    cost: product.cost,
+    image: product.image,
+    available: product.available,
+    highlight: product.highlight,
+  }))
+  let { error: prodInsert } = await supabase.from('products').insert(productRows)
+  if (prodInsert && missingColumn(prodInsert, 'cost')) {
+    const rows = productRows.map(({ cost: _cost, ...rest }) => rest)
+    const retry = await supabase.from('products').insert(rows)
+    prodInsert = retry.error
+  }
   if (prodInsert) throw prodInsert
   await saveSettings(seed.settings)
 }

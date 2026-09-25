@@ -989,6 +989,99 @@ textarea {
   font-size: 11px;
 }
 
+.dashboard {
+  margin-top: 4px;
+}
+
+.dash-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dash-scope {
+  display: flex;
+  gap: 8px;
+}
+
+.dash-controls input[type='month'] {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.dash-period {
+  text-transform: capitalize;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 8px 0 16px;
+}
+
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.kpi {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpi span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.kpi strong {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.kpi small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.kpi.accent {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.kpi.ok {
+  background: var(--ok-soft);
+  border-color: transparent;
+}
+
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dash-table th,
+.dash-table td {
+  text-align: left;
+  padding: 9px 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.dash-table th:nth-child(n + 2),
+.dash-table td:nth-child(n + 2) {
+  text-align: right;
+  white-space: nowrap;
+}
+
 .topbar-actions {
   display: flex;
   flex-direction: column;

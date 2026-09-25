@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Dashboard } from '../components/Dashboard'
 import { KitchenBoard, pendingOrderCount } from '../components/KitchenBoard'
 import { readImageFile } from '../lib/image'
 import { DEFAULT_PIN, formatBRL, parseReais, reaisInput } from '../seed'
@@ -12,12 +13,13 @@ const emptyProduct = (categoryId: string): Product => ({
   name: '',
   description: '',
   price: 0,
+  cost: 0,
   image: '',
   available: true,
   highlight: false,
 })
 
-type Tab = 'pedidos' | 'produtos' | 'categorias' | 'loja'
+type Tab = 'dashboard' | 'pedidos' | 'produtos' | 'categorias' | 'loja'
 
 function playKitchenPing() {
   const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -44,6 +46,7 @@ export function AdminPage() {
   const [tab, setTab] = useState<Tab>('pedidos')
   const [editing, setEditing] = useState<Product | null>(null)
   const [priceText, setPriceText] = useState('')
+  const [costText, setCostText] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const [notifyPerm, setNotifyPerm] = useState<NotificationPermission>(
     typeof Notification === 'undefined' ? 'denied' : Notification.permission,
@@ -216,7 +219,7 @@ export function AdminPage() {
         )}
 
         <div className="tabs">
-          {(['pedidos', 'produtos', 'categorias', 'loja'] as const).map((item) => (
+          {(['dashboard', 'pedidos', 'produtos', 'categorias', 'loja'] as const).map((item) => (
             <button
               key={item}
               className={`chip ${tab === item ? 'active' : ''}`}
@@ -229,6 +232,8 @@ export function AdminPage() {
           ))}
         </div>
 
+        {tab === 'dashboard' && <Dashboard />}
+
         {tab === 'pedidos' && <KitchenBoard />}
 
         {tab === 'produtos' && (
@@ -240,6 +245,7 @@ export function AdminPage() {
                 const next = emptyProduct(sortedCategories[0]?.id ?? 'geral')
                 setEditing(next)
                 setPriceText(reaisInput(next.price))
+                setCostText(reaisInput(next.cost))
               }}
             >
               Adicionar item
@@ -252,6 +258,7 @@ export function AdminPage() {
                   <div>
                     <small>
                       {formatCategory(product.categoryId, data.categories)} · R$ {reaisInput(product.price)}
+                      {product.cost > 0 ? ` · custo R$ ${reaisInput(product.cost)}` : ''}
                       {!product.available ? ' · pausado' : ''}
                     </small>
                   </div>
@@ -263,6 +270,7 @@ export function AdminPage() {
                     onClick={() => {
                       setEditing(product)
                       setPriceText(reaisInput(product.price))
+                      setCostText(reaisInput(product.cost))
                     }}
                   >
                     Editar
@@ -287,7 +295,7 @@ export function AdminPage() {
               onSubmit={(event) => {
                 event.preventDefault()
                 if (!editing.name.trim()) return
-                upsertProduct({ ...editing, price: parseReais(priceText) })
+                upsertProduct({ ...editing, price: parseReais(priceText), cost: parseReais(costText) })
                 setEditing(null)
               }}
             >
@@ -315,14 +323,25 @@ export function AdminPage() {
                   onChange={(e) => setEditing({ ...editing, description: e.target.value })}
                 />
               </label>
-              <label>
-                Preço (R$)
-                <input
-                  value={priceText}
-                  onChange={(e) => setPriceText(e.target.value)}
-                  inputMode="decimal"
-                />
-              </label>
+              <div className="field-row">
+                <label>
+                  Preço (R$)
+                  <input
+                    value={priceText}
+                    onChange={(e) => setPriceText(e.target.value)}
+                    inputMode="decimal"
+                  />
+                </label>
+                <label>
+                  Custo (R$)
+                  <input
+                    value={costText}
+                    onChange={(e) => setCostText(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                  />
+                </label>
+              </div>
               <label>
                 Categoria
                 <select

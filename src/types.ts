@@ -10,6 +10,7 @@ export type Product = {
   name: string
   description: string
   price: number
+  cost: number
   image: string
   available: boolean
   highlight: boolean
