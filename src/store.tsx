@@ -11,6 +11,7 @@ import {
   addressKey,
   CART_STORAGE_KEY,
   createSeed,
+  normalizeAddress,
   normalizeOrder,
   STORAGE_KEY,
 } from './seed'
@@ -111,7 +112,10 @@ function readStored(): StoreData | null {
       ...parsed,
       settings: { ...seed.settings, ...parsed.settings, logo: parsed.settings.logo ?? '' },
       cart: parsed.cart ?? [],
-      customers: parsed.customers ?? [],
+      customers: (parsed.customers ?? []).map((customer) => ({
+        ...customer,
+        addresses: (customer.addresses ?? []).map(normalizeAddress),
+      })),
       orders: (parsed.orders ?? []).map(normalizeOrder),
       lastPhone: parsed.lastPhone ?? '',
     }

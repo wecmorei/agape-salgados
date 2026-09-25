@@ -22,6 +22,7 @@ export function normalizeOrder(order: Order): Order {
   return {
     ...order,
     status: order.status ?? 'new',
+    address: normalizeAddress(order.address),
   }
 }
 
@@ -290,18 +291,36 @@ export function emptyAddress(): Address {
     complement: '',
     neighborhood: '',
     city: '',
+    state: '',
     zip: '',
+  }
+}
+
+export function normalizeAddress(address: Partial<Address> & Pick<Address, 'id'>): Address {
+  return {
+    id: address.id,
+    street: address.street ?? '',
+    number: address.number ?? '',
+    complement: address.complement ?? '',
+    neighborhood: address.neighborhood ?? '',
+    city: address.city ?? '',
+    state: address.state ?? '',
+    zip: address.zip ?? '',
   }
 }
 
 export function formatAddress(address: Address) {
   const line = `${address.street}, ${address.number}`
   const extra = address.complement ? ` — ${address.complement}` : ''
-  return `${line}${extra} · ${address.neighborhood}, ${address.city}`
+  const city = address.state ? `${address.city}/${address.state}` : address.city
+  const zip = address.zip ? ` · CEP ${address.zip}` : ''
+  return `${line}${extra} · ${address.neighborhood}, ${city}${zip}`
 }
 
-export function addressKey(address: Pick<Address, 'street' | 'number' | 'neighborhood' | 'city' | 'zip'>) {
-  return [address.street, address.number, address.neighborhood, address.city, address.zip]
+export function addressKey(
+  address: Pick<Address, 'street' | 'number' | 'neighborhood' | 'city' | 'state' | 'zip'>,
+) {
+  return [address.street, address.number, address.neighborhood, address.city, address.state, address.zip]
     .map((part) => part.trim().toLowerCase())
     .join('|')
 }
