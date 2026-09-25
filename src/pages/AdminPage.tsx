@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Dashboard } from '../components/Dashboard'
 import { KitchenBoard, pendingOrderCount } from '../components/KitchenBoard'
 import { readImageFile } from '../lib/image'
 import { DEFAULT_PIN, formatBRL, parseReais, reaisInput } from '../seed'
@@ -12,12 +13,13 @@ const emptyProduct = (categoryId: string): Product => ({
   name: '',
   description: '',
   price: 0,
+  cost: 0,
   image: '',
   available: true,
   highlight: false,
 })
 
-type Tab = 'pedidos' | 'produtos' | 'categorias' | 'loja'
+type Tab = 'dashboard' | 'pedidos' | 'produtos' | 'categorias' | 'loja'
 
 function playKitchenPing() {
   const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -36,14 +38,30 @@ function playKitchenPing() {
 }
 
 export function AdminPage() {
-  const { data, setSettings, upsertProduct, removeProduct, upsertCategory, removeCategory, resetCatalog } =
-    useStore()
+  const {
+    data,
+    admin,
+    remote,
+    signInAdmin,
+    signOutAdmin,
+    setSettings,
+    upsertProduct,
+    removeProduct,
+    upsertCategory,
+    removeCategory,
+    resetCatalog,
+  } = useStore()
   const [pin, setPin] = useState('')
   const [authed, setAuthed] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [authBusy, setAuthBusy] = useState(false)
   const [error, setError] = useState('')
+  const isAuthed = remote ? admin : authed
   const [tab, setTab] = useState<Tab>('pedidos')
   const [editing, setEditing] = useState<Product | null>(null)
   const [priceText, setPriceText] = useState('')
+  const [costText, setCostText] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const [notifyPerm, setNotifyPerm] = useState<NotificationPermission>(
     typeof Notification === 'undefined' ? 'denied' : Notification.permission,
@@ -65,7 +83,7 @@ export function AdminPage() {
   const pending = pendingOrderCount(data.orders)
 
   useEffect(() => {
-    if (!authed) {
+    if (!isAuthed) {
       knownOrderIds.current = null
       document.title = data.settings.name
       return
@@ -74,10 +92,10 @@ export function AdminPage() {
     return () => {
       document.title = data.settings.name
     }
-  }, [authed, pending, data.settings.name])
+  }, [isAuthed, pending, data.settings.name])
 
   useEffect(() => {
-    if (!authed) return
+    if (!isAuthed) return
     const ids = data.orders.map((order) => order.id)
     if (!knownOrderIds.current) {
       knownOrderIds.current = new Set(ids)
@@ -101,7 +119,7 @@ export function AdminPage() {
         tag: `order-${newest.id}`,
       })
     }
-  }, [authed, data.orders, data.settings.name])
+  }, [isAuthed, data.orders, data.settings.name])
 
   useEffect(() => {
     if (!toast) return
@@ -123,7 +141,58 @@ export function AdminPage() {
     }
   }, [editing])
 
-  if (!authed) {
+  if (!isAuthed) {
+    if (remote) {
+      return (
+        <div className="app-shell">
+          <form
+            className="admin-gate"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (authBusy) return
+              setAuthBusy(true)
+              setError('')
+              void signInAdmin(email.trim(), password)
+                .then(() => {
+                  setPassword('')
+                  if (pendingOrderCount(data.orders) > 0) setTab('pedidos')
+                })
+                .catch(() => setError('E-mail ou senha incorretos.'))
+                .finally(() => setAuthBusy(false))
+            }}
+          >
+            <h1>Área da loja</h1>
+            <p style={{ color: 'var(--muted)' }}>Entre com o e-mail e a senha da loja.</p>
+            <label>
+              E-mail
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                autoFocus
+              />
+            </label>
+            <label>
+              Senha
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+            </label>
+            {error && <p className="warn">{error}</p>}
+            <button className="btn" type="submit" disabled={authBusy}>
+              {authBusy ? 'Entrando…' : 'Entrar'}
+            </button>
+            <Link className="footer-link" to="/">
+              Voltar ao cardápio
+            </Link>
+          </form>
+        </div>
+      )
+    }
     return (
       <div className="app-shell">
         <form
@@ -198,6 +267,11 @@ export function AdminPage() {
             <Link className="chip" to="/">
               Ver cardápio
             </Link>
+            {remote && (
+              <button className="chip" type="button" onClick={() => void signOutAdmin()}>
+                Sair
+              </button>
+            )}
           </div>
         </header>
 
@@ -216,7 +290,7 @@ export function AdminPage() {
         )}
 
         <div className="tabs">
-          {(['pedidos', 'produtos', 'categorias', 'loja'] as const).map((item) => (
+          {(['dashboard', 'pedidos', 'produtos', 'categorias', 'loja'] as const).map((item) => (
             <button
               key={item}
               className={`chip ${tab === item ? 'active' : ''}`}
@@ -229,6 +303,8 @@ export function AdminPage() {
           ))}
         </div>
 
+        {tab === 'dashboard' && <Dashboard />}
+
         {tab === 'pedidos' && <KitchenBoard />}
 
         {tab === 'produtos' && (
@@ -240,6 +316,7 @@ export function AdminPage() {
                 const next = emptyProduct(sortedCategories[0]?.id ?? 'geral')
                 setEditing(next)
                 setPriceText(reaisInput(next.price))
+                setCostText(reaisInput(next.cost))
               }}
             >
               Adicionar item
@@ -252,6 +329,7 @@ export function AdminPage() {
                   <div>
                     <small>
                       {formatCategory(product.categoryId, data.categories)} · R$ {reaisInput(product.price)}
+                      {product.cost > 0 ? ` · custo R$ ${reaisInput(product.cost)}` : ''}
                       {!product.available ? ' · pausado' : ''}
                     </small>
                   </div>
@@ -263,6 +341,7 @@ export function AdminPage() {
                     onClick={() => {
                       setEditing(product)
                       setPriceText(reaisInput(product.price))
+                      setCostText(reaisInput(product.cost))
                     }}
                   >
                     Editar
@@ -287,7 +366,7 @@ export function AdminPage() {
               onSubmit={(event) => {
                 event.preventDefault()
                 if (!editing.name.trim()) return
-                upsertProduct({ ...editing, price: parseReais(priceText) })
+                upsertProduct({ ...editing, price: parseReais(priceText), cost: parseReais(costText) })
                 setEditing(null)
               }}
             >
@@ -315,14 +394,25 @@ export function AdminPage() {
                   onChange={(e) => setEditing({ ...editing, description: e.target.value })}
                 />
               </label>
-              <label>
-                Preço (R$)
-                <input
-                  value={priceText}
-                  onChange={(e) => setPriceText(e.target.value)}
-                  inputMode="decimal"
-                />
-              </label>
+              <div className="field-row">
+                <label>
+                  Preço (R$)
+                  <input
+                    value={priceText}
+                    onChange={(e) => setPriceText(e.target.value)}
+                    inputMode="decimal"
+                  />
+                </label>
+                <label>
+                  Custo (R$)
+                  <input
+                    value={costText}
+                    onChange={(e) => setCostText(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                  />
+                </label>
+              </div>
               <label>
                 Categoria
                 <select
@@ -507,10 +597,12 @@ export function AdminPage() {
               Pedido mínimo (R$)
               <input name="minOrder" defaultValue={reaisInput(data.settings.minOrder)} />
             </label>
-            <label>
-              PIN do painel
-              <input name="adminPin" defaultValue={data.settings.adminPin} />
-            </label>
+            {!remote && (
+              <label>
+                PIN do painel
+                <input name="adminPin" defaultValue={data.settings.adminPin} />
+              </label>
+            )}
             <label className="check">
               <input type="checkbox" name="open" defaultChecked={data.settings.open} />
               Loja aberta

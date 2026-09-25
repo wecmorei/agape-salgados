@@ -1,4 +1,4 @@
-import type { Address, Order, OrderStatus, PaymentMethod, StoreData } from './types'
+import type { Address, Order, OrderStatus, PaymentMethod, Product, StoreData } from './types'
 
 export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   pix: 'Pix',
@@ -22,12 +22,29 @@ export function normalizeOrder(order: Order): Order {
   return {
     ...order,
     status: order.status ?? 'new',
+    address: normalizeAddress(order.address),
   }
 }
 
 export const STORAGE_KEY = 'agape-salgados:v1'
 export const CART_STORAGE_KEY = 'agape-salgados:cart:v1'
 export const DEFAULT_PIN = '1234'
+
+// Custo estimado inicial por produto (a loja ajusta na aba Produtos).
+// Bebidas de revenda têm custo maior; salgados ~40% do preço.
+const COST_RATIO: Record<string, number> = {
+  coca: 0.62,
+  guarana: 0.6,
+  agua: 0.45,
+  suco: 0.35,
+}
+
+function withCosts(items: Omit<Product, 'cost'>[]): Product[] {
+  return items.map((item) => ({
+    ...item,
+    cost: Math.round(item.price * (COST_RATIO[item.id] ?? 0.4)),
+  }))
+}
 
 export function createSeed(): StoreData {
   return {
@@ -47,7 +64,7 @@ export function createSeed(): StoreData {
       { id: 'drinks', name: 'Bebidas', order: 4 },
       { id: 'doces', name: 'Doces', order: 5 },
     ],
-    products: [
+    products: withCosts([
       {
         id: 'coxinha-frango',
         categoryId: 'fritos',
@@ -257,7 +274,7 @@ export function createSeed(): StoreData {
         available: true,
         highlight: false,
       },
-    ],
+    ]),
     cart: [],
     customers: [],
     orders: [],
@@ -290,18 +307,36 @@ export function emptyAddress(): Address {
     complement: '',
     neighborhood: '',
     city: '',
+    state: '',
     zip: '',
+  }
+}
+
+export function normalizeAddress(address: Partial<Address> & Pick<Address, 'id'>): Address {
+  return {
+    id: address.id,
+    street: address.street ?? '',
+    number: address.number ?? '',
+    complement: address.complement ?? '',
+    neighborhood: address.neighborhood ?? '',
+    city: address.city ?? '',
+    state: address.state ?? '',
+    zip: address.zip ?? '',
   }
 }
 
 export function formatAddress(address: Address) {
   const line = `${address.street}, ${address.number}`
   const extra = address.complement ? ` — ${address.complement}` : ''
-  return `${line}${extra} · ${address.neighborhood}, ${address.city}`
+  const city = address.state ? `${address.city}/${address.state}` : address.city
+  const zip = address.zip ? ` · CEP ${address.zip}` : ''
+  return `${line}${extra} · ${address.neighborhood}, ${city}${zip}`
 }
 
-export function addressKey(address: Pick<Address, 'street' | 'number' | 'neighborhood' | 'city' | 'zip'>) {
-  return [address.street, address.number, address.neighborhood, address.city, address.zip]
+export function addressKey(
+  address: Pick<Address, 'street' | 'number' | 'neighborhood' | 'city' | 'state' | 'zip'>,
+) {
+  return [address.street, address.number, address.neighborhood, address.city, address.state, address.zip]
     .map((part) => part.trim().toLowerCase())
     .join('|')
 }

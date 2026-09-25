@@ -11,20 +11,29 @@ import {
   addressKey,
   CART_STORAGE_KEY,
   createSeed,
+  normalizeAddress,
   normalizeOrder,
+  normalizePhone,
   STORAGE_KEY,
 } from './seed'
 import {
   deleteCategory,
   deleteProduct,
-  fetchRemoteCatalog,
+  fetchAdminData,
+  fetchCustomerByPhone,
+  fetchOrdersByPhone,
+  fetchPublicCatalog,
+  getAdminSession,
   hasRemote,
   insertRemoteOrder,
+  onAdminAuthChange,
   replaceCatalog,
   saveCategory,
   saveOrderStatus,
   saveProduct,
   saveSettings,
+  signInAdmin as remoteSignIn,
+  signOutAdmin as remoteSignOut,
   subscribeRemote,
 } from './lib/remote'
 import type {
@@ -50,6 +59,8 @@ type PlaceOrderInput = {
 type StoreContextValue = {
   data: StoreData
   ready: boolean
+  admin: boolean
+  remote: boolean
   setSettings: (patch: Partial<Settings>) => void
   upsertCategory: (category: Category) => void
   removeCategory: (id: string) => void
@@ -60,7 +71,10 @@ type StoreContextValue = {
   setNote: (productId: string, note: string) => void
   clearCart: () => void
   resetCatalog: () => void
-  findCustomer: (phone: string) => Customer | undefined
+  lookupCustomer: (phone: string) => Promise<Customer | undefined>
+  fetchOrdersForPhone: (phone: string) => Promise<Order[]>
+  signInAdmin: (email: string, password: string) => Promise<void>
+  signOutAdmin: () => Promise<void>
   placeOrder: (input: PlaceOrderInput) => Promise<Order>
   setOrderStatus: (id: string, status: OrderStatus) => void
 }
@@ -111,7 +125,10 @@ function readStored(): StoreData | null {
       ...parsed,
       settings: { ...seed.settings, ...parsed.settings, logo: parsed.settings.logo ?? '' },
       cart: parsed.cart ?? [],
-      customers: parsed.customers ?? [],
+      customers: (parsed.customers ?? []).map((customer) => ({
+        ...customer,
+        addresses: (customer.addresses ?? []).map(normalizeAddress),
+      })),
       orders: (parsed.orders ?? []).map(normalizeOrder),
       lastPhone: parsed.lastPhone ?? '',
     }
@@ -129,15 +146,16 @@ function loadData(): StoreData {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<StoreData>(loadData)
   const [ready, setReady] = useState(!hasRemote)
+  const [admin, setAdmin] = useState(false)
 
-  const mergeRemote = useCallback(async () => {
-    const remote = await fetchRemoteCatalog()
-    if (!remote) return
+  const loadPublicCatalog = useCallback(async () => {
+    const catalog = await fetchPublicCatalog()
+    if (!catalog) return
     setData((current) => ({
       ...current,
-      ...remote,
-      cart: current.cart,
-      lastPhone: current.lastPhone,
+      settings: catalog.settings,
+      categories: catalog.categories,
+      products: catalog.products,
     }))
   }, [])
 
@@ -152,10 +170,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hasRemote) return
     let cancelled = false
+    let unsubData: () => void = () => {}
+
+    const refreshAdmin = async () => {
+      const adminData = await fetchAdminData()
+      if (cancelled || !adminData) return
+      setData((current) => ({ ...current, orders: adminData.orders, customers: adminData.customers }))
+    }
+
+    const startAdmin = async () => {
+      await refreshAdmin()
+      if (cancelled) return
+      unsubData()
+      unsubData = subscribeRemote(() => {
+        void refreshAdmin()
+      })
+    }
+
+    const loadCustomerOrders = async () => {
+      const phone = normalizePhone(readCart().lastPhone)
+      const orders = phone ? await fetchOrdersByPhone(phone) : []
+      if (cancelled) return
+      setData((current) => ({ ...current, orders }))
+    }
+
     void (async () => {
       try {
         await Promise.race([
-          mergeRemote(),
+          loadPublicCatalog(),
           new Promise((_, reject) => window.setTimeout(() => reject(new Error('timeout')), 8000)),
         ])
       } catch {
@@ -163,15 +205,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } finally {
         if (!cancelled) setReady(true)
       }
+      const signed = await getAdminSession()
+      if (cancelled) return
+      setAdmin(signed)
+      if (signed) await startAdmin()
+      else await loadCustomerOrders()
     })()
-    const unsubscribe = subscribeRemote(() => {
-      void mergeRemote()
+
+    const unsubAuth = onAdminAuthChange((signedIn) => {
+      setAdmin(signedIn)
+      if (signedIn) {
+        void startAdmin()
+      } else {
+        unsubData()
+        unsubData = () => {}
+        void loadCustomerOrders()
+      }
     })
+
     return () => {
       cancelled = true
-      unsubscribe()
+      unsubData()
+      unsubAuth()
     }
-  }, [mergeRemote])
+  }, [loadPublicCatalog])
 
   useEffect(() => {
     if (hasRemote) return
@@ -194,6 +251,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => ({
       data,
       ready,
+      admin,
+      remote: hasRemote,
       setSettings: (patch) => {
         update((current) => ({
           ...current,
@@ -294,10 +353,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         })
         void replaceCatalog()
       },
-      findCustomer: (phone) => data.customers.find((item) => item.phone === phone),
+      lookupCustomer: async (phone) => {
+        const normalized = normalizePhone(phone)
+        if (!normalized) return undefined
+        if (hasRemote) return (await fetchCustomerByPhone(normalized)) ?? undefined
+        return data.customers.find((item) => item.phone === normalized)
+      },
+      fetchOrdersForPhone: async (phone) => {
+        const normalized = normalizePhone(phone)
+        if (!normalized) return []
+        if (hasRemote) return fetchOrdersByPhone(normalized)
+        return data.orders.filter((item) => normalizePhone(item.phone) === normalized)
+      },
+      signInAdmin: async (email, password) => {
+        await remoteSignIn(email, password)
+      },
+      signOutAdmin: async () => {
+        await remoteSignOut()
+        setAdmin(false)
+        setData((current) => ({ ...current, orders: [], customers: [] }))
+      },
       placeOrder: async (input) => {
         const totals = cartTotals(data)
-        const existingCustomer = data.customers.find((item) => item.phone === input.phone)
         if (hasRemote) {
           const created = await insertRemoteOrder({
             phone: input.phone,
@@ -308,29 +385,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             subtotal: totals.subtotal,
             delivery: totals.delivery,
             total: totals.total,
-            existing: existingCustomer,
           })
-          const duplicate = existingCustomer?.addresses.find(
-            (item) => addressKey(item) === addressKey(input.address),
-          )
-          const savedAddress = duplicate ?? created.address
-          const addresses = existingCustomer
-            ? duplicate
-              ? existingCustomer.addresses
-              : [...existingCustomer.addresses, savedAddress]
-            : [savedAddress]
-          const customer: Customer = {
-            phone: input.phone,
-            addresses,
-            lastAddressId: savedAddress.id,
-          }
           const next: StoreData = {
             ...data,
             cart: [],
             lastPhone: input.phone,
-            customers: existingCustomer
-              ? data.customers.map((item) => (item.phone === input.phone ? customer : item))
-              : [...data.customers, customer],
             orders: data.orders.some((item) => item.id === created.id)
               ? data.orders
               : [...data.orders, created],
@@ -340,6 +399,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return created
         }
 
+        const existingCustomer = data.customers.find((item) => item.phone === input.phone)
         const duplicate = existingCustomer?.addresses.find(
           (item) => addressKey(item) === addressKey(input.address),
         )
@@ -388,7 +448,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         void saveOrderStatus(id, status)
       },
     }),
-    [data, ready, update],
+    [data, ready, admin, update],
   )
 
   if (!ready) {

@@ -664,6 +664,26 @@ textarea {
   gap: 10px;
 }
 
+.field-row.city-state {
+  grid-template-columns: 1fr 7.5rem;
+}
+
+.field-hint,
+.cep-status {
+  margin: -4px 0 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.cep-status.ok {
+  color: var(--ok);
+}
+
+.cep-status.warn {
+  color: var(--warn);
+}
+
 .change-box {
   margin-top: 12px;
   padding: 12px;
@@ -858,4 +878,366 @@ textarea {
   font-weight: 700;
   box-shadow: var(--shadow);
   max-width: min(360px, calc(100% - 32px));
+}
+
+.kitchen-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kitchen-card-actions .btn {
+  width: auto;
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Cupom para impressora térmica (não fiscal, bobina 80mm) */
+.receipt-print {
+  display: none;
+}
+
+.receipt {
+  width: 100%;
+  color: #000;
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.receipt-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+.receipt-head strong {
+  font-size: 15px;
+  text-transform: uppercase;
+}
+
+.receipt-sep {
+  border-top: 1px dashed #000;
+  margin: 6px 0;
+}
+
+.receipt-items {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.receipt-items th {
+  font-size: 11px;
+  text-align: left;
+  border-bottom: 1px solid #000;
+  padding-bottom: 3px;
+}
+
+.receipt-items td {
+  vertical-align: top;
+  padding: 3px 0;
+}
+
+.receipt-items .col-qty {
+  white-space: nowrap;
+  padding-right: 6px;
+}
+
+.receipt-items .col-value {
+  text-align: right;
+  white-space: nowrap;
+  padding-left: 6px;
+}
+
+.receipt-note {
+  font-size: 11px;
+  font-style: italic;
+}
+
+.receipt-unit {
+  font-size: 10px;
+  color: #333;
+}
+
+.receipt-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.receipt-line.total {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.receipt-block {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+
+.receipt-block strong {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.receipt-foot {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+.dashboard {
+  margin-top: 4px;
+}
+
+.dash-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dash-scope {
+  display: flex;
+  gap: 8px;
+}
+
+.dash-controls input[type='month'] {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.dash-period {
+  text-transform: capitalize;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 8px 0 16px;
+}
+
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.kpi {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpi span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.kpi strong {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.kpi small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.kpi.accent {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.kpi.ok {
+  background: var(--ok-soft);
+  border-color: transparent;
+}
+
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dash-table th,
+.dash-table td {
+  text-align: left;
+  padding: 9px 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.dash-table th:nth-child(n + 2),
+.dash-table td:nth-child(n + 2) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.topbar-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.topbar-actions .chip {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.link-btn {
+  border: 0;
+  background: none;
+  color: var(--accent-dark);
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.my-orders-phone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.my-orders-group {
+  margin-bottom: 18px;
+}
+
+.my-orders-title {
+  font-size: 0.95rem;
+  margin: 0 0 10px;
+}
+
+.my-order-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.my-order-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.my-order-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.my-order-items {
+  margin: 10px 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+}
+
+.my-order-address {
+  font-size: 0.85rem;
+  margin: 6px 0;
+}
+
+.my-order-total {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.order-track {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+
+.track-step {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding-bottom: 14px;
+}
+
+.track-step::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 16px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--line);
+}
+
+.track-step:last-child::before {
+  display: none;
+}
+
+.track-dot {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: #fff;
+}
+
+.track-step.done .track-dot {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+
+.track-step.active .track-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.track-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.track-text small {
+  color: var(--muted);
+}
+
+.track-step.todo .track-text strong {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+@media print {
+  body > *:not(.receipt-print) {
+    display: none !important;
+  }
+
+  .receipt-print {
+    display: block;
+    width: 80mm;
+    background: #fff;
+  }
+
+  @page {
+    size: 80mm auto;
+    margin: 3mm;
+  }
 }

@@ -1,4 +1,4 @@
-import { addressKey, createSeed, normalizeOrder } from '../seed'
+import { createSeed, normalizeAddress, normalizeOrder } from '../seed'
 import type {
   Address,
   CartLine,
@@ -38,6 +38,7 @@ type ProductRow = {
   name: string
   description: string
   price: number
+  cost?: number | null
   image: string
   available: boolean
   highlight: boolean
@@ -56,6 +57,7 @@ type AddressRow = {
   complement: string
   neighborhood: string
   city: string
+  state?: string | null
   zip: string
 }
 
@@ -101,15 +103,22 @@ function mapSettings(row: SettingsRow): Settings {
     tagline: row.tagline,
     deliveryFee: row.delivery_fee,
     minOrder: row.min_order,
-    adminPin: row.admin_pin,
+    adminPin: row.admin_pin ?? '',
     open: row.open,
     logo,
   }
 }
 
-function missingLogoColumn(error: { message?: string; code?: string }) {
+function missingColumn(error: { message?: string; code?: string }, column: string) {
   const message = `${error.code ?? ''} ${error.message ?? ''}`.toLowerCase()
-  return message.includes('logo') && (message.includes('column') || message.includes('schema') || message.includes('pgrst204'))
+  return (
+    message.includes(column) &&
+    (message.includes('column') || message.includes('schema') || message.includes('pgrst204'))
+  )
+}
+
+function missingLogoColumn(error: { message?: string; code?: string }) {
+  return missingColumn(error, 'logo')
 }
 
 function mapCategory(row: CategoryRow): Category {
@@ -123,6 +132,7 @@ function mapProduct(row: ProductRow): Product {
     name: row.name,
     description: row.description,
     price: row.price,
+    cost: row.cost ?? 0,
     image: row.image,
     available: row.available,
     highlight: row.highlight,
@@ -133,7 +143,7 @@ function mapOrder(row: OrderRow): Order {
   return normalizeOrder({
     id: String(row.id),
     phone: row.phone,
-    address: row.address,
+    address: normalizeAddress(row.address),
     paymentMethod: row.payment_method,
     changeFor: row.change_for,
     items: row.items ?? [],
@@ -149,15 +159,18 @@ function mapCustomers(rows: CustomerRow[], addresses: AddressRow[]): Customer[] 
   return rows.map((row) => {
     const list = addresses
       .filter((item) => item.phone === row.phone)
-      .map((item) => ({
-        id: item.id,
-        street: item.street,
-        number: item.number,
-        complement: item.complement,
-        neighborhood: item.neighborhood,
-        city: item.city,
-        zip: item.zip,
-      }))
+      .map((item) =>
+        normalizeAddress({
+          id: item.id,
+          street: item.street,
+          number: item.number,
+          complement: item.complement,
+          neighborhood: item.neighborhood,
+          city: item.city,
+          state: item.state ?? '',
+          zip: item.zip,
+        }),
+      )
     return {
       phone: row.phone,
       addresses: list,
@@ -166,41 +179,112 @@ function mapCustomers(rows: CustomerRow[], addresses: AddressRow[]): Customer[] 
   })
 }
 
-export async function fetchRemoteCatalog(): Promise<Omit<StoreData, 'cart' | 'lastPhone'> | null> {
+export type PublicCatalog = Pick<StoreData, 'settings' | 'categories' | 'products'>
+export type AdminData = Pick<StoreData, 'orders' | 'customers'>
+
+// Cardápio público: só o que o cliente pode ver (sem pedidos/clientes e sem o PIN).
+export async function fetchPublicCatalog(): Promise<PublicCatalog | null> {
   if (!supabase) return null
   try {
-    const [settingsRes, categoriesRes, productsRes, customersRes, addressesRes, ordersRes] = await Promise.all([
-      supabase.from('store_settings').select('*').eq('id', 1).single(),
+    const [settingsRes, categoriesRes, productsRes] = await Promise.all([
+      supabase
+        .from('store_settings')
+        .select('id,name,tagline,delivery_fee,min_order,open,logo')
+        .eq('id', 1)
+        .maybeSingle(),
       supabase.from('categories').select('*').order('sort_order'),
       supabase.from('products').select('*'),
+    ])
+
+    if (categoriesRes.error || productsRes.error) {
+      console.error('Falha ao carregar o cardápio remoto', {
+        categories: categoriesRes.error,
+        products: productsRes.error,
+      })
+      return null
+    }
+
+    return {
+      settings: settingsRes.data
+        ? mapSettings(settingsRes.data as SettingsRow)
+        : createSeed().settings,
+      categories: (categoriesRes.data as CategoryRow[]).map(mapCategory),
+      products: (productsRes.data as ProductRow[]).map(mapProduct),
+    }
+  } catch (error) {
+    console.error('Falha ao carregar o cardápio remoto', error)
+    return null
+  }
+}
+
+// Dados sensíveis (pedidos + clientes): só para a loja autenticada.
+export async function fetchAdminData(): Promise<AdminData | null> {
+  if (!supabase) return null
+  try {
+    const [customersRes, addressesRes, ordersRes] = await Promise.all([
       supabase.from('customers').select('*'),
       supabase.from('addresses').select('*'),
       supabase.from('orders').select('*').order('id'),
     ])
-
-    if (settingsRes.error || categoriesRes.error || productsRes.error || customersRes.error || addressesRes.error || ordersRes.error) {
-      console.error('Falha ao carregar o cardápio remoto', {
-        settings: settingsRes.error,
-        categories: categoriesRes.error,
-        products: productsRes.error,
+    if (customersRes.error || addressesRes.error || ordersRes.error) {
+      console.error('Falha ao carregar os pedidos', {
         customers: customersRes.error,
         addresses: addressesRes.error,
         orders: ordersRes.error,
       })
       return null
     }
-
     return {
-      settings: mapSettings(settingsRes.data as SettingsRow),
-      categories: (categoriesRes.data as CategoryRow[]).map(mapCategory),
-      products: (productsRes.data as ProductRow[]).map(mapProduct),
       customers: mapCustomers(customersRes.data as CustomerRow[], addressesRes.data as AddressRow[]),
       orders: (ordersRes.data as OrderRow[]).map(mapOrder),
     }
   } catch (error) {
-    console.error('Falha ao carregar o cardápio remoto', error)
+    console.error('Falha ao carregar os pedidos', error)
     return null
   }
+}
+
+// Cliente acompanha os próprios pedidos pelo telefone (via função no banco).
+export async function fetchOrdersByPhone(phone: string): Promise<Order[]> {
+  if (!supabase || !phone) return []
+  const { data, error } = await supabase.rpc('get_orders_by_phone', { p_phone: phone })
+  if (error || !data) return []
+  return (data as OrderRow[]).map(mapOrder)
+}
+
+export async function fetchCustomerByPhone(phone: string): Promise<Customer | null> {
+  if (!supabase || !phone) return null
+  const { data, error } = await supabase.rpc('get_customer_by_phone', { p_phone: phone })
+  if (error || !data) return null
+  const row = data as { phone: string; lastAddressId: string | null; addresses: Address[] }
+  return {
+    phone: row.phone,
+    lastAddressId: row.lastAddressId,
+    addresses: (row.addresses ?? []).map((item) => normalizeAddress(item)),
+  }
+}
+
+export async function signInAdmin(email: string, password: string) {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw error
+}
+
+export async function signOutAdmin() {
+  if (!supabase) return
+  await supabase.auth.signOut()
+}
+
+export async function getAdminSession(): Promise<boolean> {
+  if (!supabase) return false
+  const { data } = await supabase.auth.getSession()
+  return Boolean(data.session)
+}
+
+export function onAdminAuthChange(cb: (signedIn: boolean) => void) {
+  if (!supabase) return () => undefined
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => cb(Boolean(session)))
+  return () => data.subscription.unsubscribe()
 }
 
 export async function saveSettings(patch: Partial<Settings>) {
@@ -210,7 +294,6 @@ export async function saveSettings(patch: Partial<Settings>) {
   if (patch.tagline !== undefined) row.tagline = patch.tagline
   if (patch.deliveryFee !== undefined) row.delivery_fee = patch.deliveryFee
   if (patch.minOrder !== undefined) row.min_order = patch.minOrder
-  if (patch.adminPin !== undefined) row.admin_pin = patch.adminPin
   if (patch.open !== undefined) row.open = patch.open
   if (patch.logo !== undefined) {
     writeStoredLogo(patch.logo)
@@ -245,16 +328,24 @@ export async function deleteCategory(id: string) {
 
 export async function saveProduct(product: Product) {
   if (!supabase) return
-  const { error } = await supabase.from('products').upsert({
+  const row = {
     id: product.id,
     category_id: product.categoryId,
     name: product.name,
     description: product.description,
     price: product.price,
+    cost: product.cost,
     image: product.image,
     available: product.available,
     highlight: product.highlight,
-  })
+  }
+  const { error } = await supabase.from('products').upsert(row)
+  if (error && missingColumn(error, 'cost')) {
+    const { cost: _cost, ...rest } = row
+    const retry = await supabase.from('products').upsert(rest)
+    if (retry.error) throw retry.error
+    return
+  }
   if (error) throw error
 }
 
@@ -279,18 +370,23 @@ export async function replaceCatalog() {
     })),
   )
   if (catInsert) throw catInsert
-  const { error: prodInsert } = await supabase.from('products').insert(
-    seed.products.map((product) => ({
-      id: product.id,
-      category_id: product.categoryId,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      image: product.image,
-      available: product.available,
-      highlight: product.highlight,
-    })),
-  )
+  const productRows = seed.products.map((product) => ({
+    id: product.id,
+    category_id: product.categoryId,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    cost: product.cost,
+    image: product.image,
+    available: product.available,
+    highlight: product.highlight,
+  }))
+  let { error: prodInsert } = await supabase.from('products').insert(productRows)
+  if (prodInsert && missingColumn(prodInsert, 'cost')) {
+    const rows = productRows.map(({ cost: _cost, ...rest }) => rest)
+    const retry = await supabase.from('products').insert(rows)
+    prodInsert = retry.error
+  }
   if (prodInsert) throw prodInsert
   await saveSettings(seed.settings)
 }
@@ -310,62 +406,29 @@ export async function insertRemoteOrder(input: {
   subtotal: number
   delivery: number
   total: number
-  existing?: Customer
 }): Promise<Order> {
   if (!supabase) throw new Error('Supabase não configurado')
 
-  const { error: customerError } = await supabase.from('customers').upsert({
-    phone: input.phone,
-    last_address_id: input.existing?.lastAddressId ?? null,
+  const { data, error } = await supabase.rpc('place_order', {
+    p_phone: input.phone,
+    p_address: {
+      street: input.address.street,
+      number: input.address.number,
+      complement: input.address.complement,
+      neighborhood: input.address.neighborhood,
+      city: input.address.city,
+      state: input.address.state,
+      zip: input.address.zip,
+    },
+    p_payment: input.paymentMethod,
+    p_change: input.changeFor,
+    p_items: input.items,
+    p_subtotal: input.subtotal,
+    p_delivery: input.delivery,
+    p_total: input.total,
   })
-  if (customerError) throw customerError
-
-  const duplicate = input.existing?.addresses.find((item) => addressKey(item) === addressKey(input.address))
-  let savedAddress = duplicate ?? { ...input.address, id: crypto.randomUUID() }
-
-  if (!duplicate) {
-    const { data, error } = await supabase
-      .from('addresses')
-      .insert({
-        id: savedAddress.id,
-        phone: input.phone,
-        street: savedAddress.street,
-        number: savedAddress.number,
-        complement: savedAddress.complement,
-        neighborhood: savedAddress.neighborhood,
-        city: savedAddress.city,
-        zip: savedAddress.zip,
-      })
-      .select('id')
-      .single()
-    if (error) throw error
-    savedAddress = { ...savedAddress, id: data.id }
-  }
-
-  const { error: lastAddrError } = await supabase
-    .from('customers')
-    .update({ last_address_id: savedAddress.id })
-    .eq('phone', input.phone)
-  if (lastAddrError) throw lastAddrError
-
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .insert({
-      phone: input.phone,
-      address: savedAddress,
-      payment_method: input.paymentMethod,
-      change_for: input.changeFor,
-      items: input.items,
-      subtotal: input.subtotal,
-      delivery: input.delivery,
-      total: input.total,
-      status: 'new',
-    })
-    .select('*')
-    .single()
-  if (orderError) throw orderError
-
-  return mapOrder(order as OrderRow)
+  if (error) throw error
+  return mapOrder(data as OrderRow)
 }
 
 export function subscribeRemote(onChange: () => void) {
