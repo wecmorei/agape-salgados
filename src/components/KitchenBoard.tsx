@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   formatAddress,
   formatBRL,
@@ -9,6 +9,7 @@ import {
 } from '../seed'
 import { useStore } from '../store'
 import type { Order, OrderStatus } from '../types'
+import { OrderReceipt } from './OrderReceipt'
 
 const NEXT_ACTION: Partial<Record<OrderStatus, { status: OrderStatus; label: string }>> = {
   new: { status: 'preparing', label: 'Iniciar preparo' },
@@ -32,6 +33,18 @@ export function pendingOrderCount(orders: Order[]) {
 export function KitchenBoard() {
   const { data, setOrderStatus } = useStore()
   const [filter, setFilter] = useState<'open' | 'done'>('open')
+  const [printOrder, setPrintOrder] = useState<Order | null>(null)
+
+  useEffect(() => {
+    if (!printOrder) return
+    const clear = () => setPrintOrder(null)
+    window.addEventListener('afterprint', clear)
+    const timer = window.setTimeout(() => window.print(), 60)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('afterprint', clear)
+    }
+  }, [printOrder])
 
   const list = useMemo(() => {
     const wanted = data.orders.filter((order) =>
@@ -122,19 +135,38 @@ export function KitchenBoard() {
                 {formatBRL(order.total)}
               </p>
 
-              {action && (
+              <div className="kitchen-card-actions">
                 <button
-                  className="btn"
+                  className="btn ghost"
                   type="button"
-                  onClick={() => setOrderStatus(order.id, action.status)}
+                  onClick={() => setPrintOrder(order)}
                 >
-                  {action.label}
+                  Imprimir
                 </button>
-              )}
+                {action && (
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => setOrderStatus(order.id, action.status)}
+                  >
+                    {action.label}
+                  </button>
+                )}
+              </div>
             </article>
           )
         })}
       </div>
+
+      {printOrder && (
+        <div className="receipt-print" aria-hidden="true">
+          <OrderReceipt
+            order={printOrder}
+            products={data.products}
+            storeName={data.settings.name}
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -859,3 +859,136 @@ textarea {
   box-shadow: var(--shadow);
   max-width: min(360px, calc(100% - 32px));
 }
+
+.kitchen-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kitchen-card-actions .btn {
+  width: auto;
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Cupom para impressora térmica (não fiscal, bobina 80mm) */
+.receipt-print {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 80mm;
+  background: #fff;
+}
+
+.receipt {
+  width: 100%;
+  color: #000;
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.receipt-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+.receipt-head strong {
+  font-size: 15px;
+  text-transform: uppercase;
+}
+
+.receipt-sep {
+  border-top: 1px dashed #000;
+  margin: 6px 0;
+}
+
+.receipt-items {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.receipt-items th {
+  font-size: 11px;
+  text-align: left;
+  border-bottom: 1px solid #000;
+  padding-bottom: 3px;
+}
+
+.receipt-items td {
+  vertical-align: top;
+  padding: 3px 0;
+}
+
+.receipt-items .col-qty {
+  white-space: nowrap;
+  padding-right: 6px;
+}
+
+.receipt-items .col-value {
+  text-align: right;
+  white-space: nowrap;
+  padding-left: 6px;
+}
+
+.receipt-note {
+  font-size: 11px;
+  font-style: italic;
+}
+
+.receipt-unit {
+  font-size: 10px;
+  color: #333;
+}
+
+.receipt-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.receipt-line.total {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.receipt-block {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+
+.receipt-block strong {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.receipt-foot {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .receipt-print,
+  .receipt-print * {
+    visibility: visible;
+  }
+
+  .receipt-print {
+    left: 0;
+  }
+
+  @page {
+    size: 80mm auto;
+    margin: 3mm;
+  }
+}
