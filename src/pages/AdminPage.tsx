@@ -38,11 +38,26 @@ function playKitchenPing() {
 }
 
 export function AdminPage() {
-  const { data, setSettings, upsertProduct, removeProduct, upsertCategory, removeCategory, resetCatalog } =
-    useStore()
+  const {
+    data,
+    admin,
+    remote,
+    signInAdmin,
+    signOutAdmin,
+    setSettings,
+    upsertProduct,
+    removeProduct,
+    upsertCategory,
+    removeCategory,
+    resetCatalog,
+  } = useStore()
   const [pin, setPin] = useState('')
   const [authed, setAuthed] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [authBusy, setAuthBusy] = useState(false)
   const [error, setError] = useState('')
+  const isAuthed = remote ? admin : authed
   const [tab, setTab] = useState<Tab>('pedidos')
   const [editing, setEditing] = useState<Product | null>(null)
   const [priceText, setPriceText] = useState('')
@@ -68,7 +83,7 @@ export function AdminPage() {
   const pending = pendingOrderCount(data.orders)
 
   useEffect(() => {
-    if (!authed) {
+    if (!isAuthed) {
       knownOrderIds.current = null
       document.title = data.settings.name
       return
@@ -77,10 +92,10 @@ export function AdminPage() {
     return () => {
       document.title = data.settings.name
     }
-  }, [authed, pending, data.settings.name])
+  }, [isAuthed, pending, data.settings.name])
 
   useEffect(() => {
-    if (!authed) return
+    if (!isAuthed) return
     const ids = data.orders.map((order) => order.id)
     if (!knownOrderIds.current) {
       knownOrderIds.current = new Set(ids)
@@ -104,7 +119,7 @@ export function AdminPage() {
         tag: `order-${newest.id}`,
       })
     }
-  }, [authed, data.orders, data.settings.name])
+  }, [isAuthed, data.orders, data.settings.name])
 
   useEffect(() => {
     if (!toast) return
@@ -126,7 +141,58 @@ export function AdminPage() {
     }
   }, [editing])
 
-  if (!authed) {
+  if (!isAuthed) {
+    if (remote) {
+      return (
+        <div className="app-shell">
+          <form
+            className="admin-gate"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (authBusy) return
+              setAuthBusy(true)
+              setError('')
+              void signInAdmin(email.trim(), password)
+                .then(() => {
+                  setPassword('')
+                  if (pendingOrderCount(data.orders) > 0) setTab('pedidos')
+                })
+                .catch(() => setError('E-mail ou senha incorretos.'))
+                .finally(() => setAuthBusy(false))
+            }}
+          >
+            <h1>Área da loja</h1>
+            <p style={{ color: 'var(--muted)' }}>Entre com o e-mail e a senha da loja.</p>
+            <label>
+              E-mail
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                autoFocus
+              />
+            </label>
+            <label>
+              Senha
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+            </label>
+            {error && <p className="warn">{error}</p>}
+            <button className="btn" type="submit" disabled={authBusy}>
+              {authBusy ? 'Entrando…' : 'Entrar'}
+            </button>
+            <Link className="footer-link" to="/">
+              Voltar ao cardápio
+            </Link>
+          </form>
+        </div>
+      )
+    }
     return (
       <div className="app-shell">
         <form
@@ -201,6 +267,11 @@ export function AdminPage() {
             <Link className="chip" to="/">
               Ver cardápio
             </Link>
+            {remote && (
+              <button className="chip" type="button" onClick={() => void signOutAdmin()}>
+                Sair
+              </button>
+            )}
           </div>
         </header>
 
@@ -526,10 +597,12 @@ export function AdminPage() {
               Pedido mínimo (R$)
               <input name="minOrder" defaultValue={reaisInput(data.settings.minOrder)} />
             </label>
-            <label>
-              PIN do painel
-              <input name="adminPin" defaultValue={data.settings.adminPin} />
-            </label>
+            {!remote && (
+              <label>
+                PIN do painel
+                <input name="adminPin" defaultValue={data.settings.adminPin} />
+              </label>
+            )}
             <label className="check">
               <input type="checkbox" name="open" defaultChecked={data.settings.open} />
               Loja aberta

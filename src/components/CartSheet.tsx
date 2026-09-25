@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   BRAZILIAN_STATES,
   formatZip,
@@ -18,7 +18,7 @@ import {
   reaisInput,
 } from '../seed'
 import { cartTotals, useStore } from '../store'
-import type { Address, Order, PaymentMethod } from '../types'
+import type { Address, Customer, Order, PaymentMethod } from '../types'
 
 type CepStatus = 'idle' | 'loading' | 'ok' | 'not-found' | 'error'
 
@@ -40,7 +40,7 @@ export function CartSheet({
   onClose: () => void
   startOnCheckout?: boolean
 }) {
-  const { data, clearCart, findCustomer, placeOrder } = useStore()
+  const { data, clearCart, lookupCustomer, placeOrder } = useStore()
   const totals = cartTotals(data)
   const [step, setStep] = useState<Step>('cart')
   const [phone, setPhone] = useState('')
@@ -55,12 +55,8 @@ export function CartSheet({
   const [order, setOrder] = useState<Order | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [cepStatus, setCepStatus] = useState<CepStatus>('idle')
+  const [foundCustomer, setFoundCustomer] = useState<Customer | null>(null)
   const lastCepLookup = useRef('')
-
-  const customer = useMemo(
-    () => findCustomer(normalizePhone(phone)),
-    [findCustomer, phone],
-  )
 
   useEffect(() => {
     if (!open) return
@@ -73,6 +69,7 @@ export function CartSheet({
     setChangeText('')
     setAddingNew(false)
     setCepStatus('idle')
+    setFoundCustomer(null)
     lastCepLookup.current = ''
   }, [open, startOnCheckout])
 
@@ -143,13 +140,14 @@ export function CartSheet({
     setCepStatus('idle')
   }
 
-  function goAddress() {
+  async function goAddress() {
     if (!isValidPhone(phone)) {
       setError('Informe um telefone válido com DDD.')
       return
     }
-    const found = findCustomer(normalizePhone(phone))
     setError('')
+    const found = (await lookupCustomer(normalizePhone(phone))) ?? null
+    setFoundCustomer(found)
     setReturning(Boolean(found))
     if (found && found.addresses.length > 0) {
       const last =
@@ -268,7 +266,7 @@ export function CartSheet({
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              goAddress()
+              void goAddress()
             }}
           >
             <p className="muted">
@@ -304,12 +302,12 @@ export function CartSheet({
               goPayment()
             }}
           >
-            {returning && customer && customer.addresses.length > 0 && (
+            {returning && foundCustomer && foundCustomer.addresses.length > 0 && (
               <>
                 <p className="welcome">Encontramos seus dados. O endereço já veio preenchido — confirme ou adicione outro.</p>
-                {customer.addresses.length > 1 && (
+                {foundCustomer.addresses.length > 1 && (
                   <div className="address-list">
-                    {customer.addresses.map((item) => (
+                    {foundCustomer.addresses.map((item) => (
                       <button
                         key={item.id}
                         type="button"

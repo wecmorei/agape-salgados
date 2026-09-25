@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   formatAddress,
   formatBRL,
@@ -70,9 +70,10 @@ function OrderItems({ order }: { order: Order }) {
 }
 
 export function MyOrders({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { data } = useStore()
+  const { data, fetchOrdersForPhone } = useStore()
   const [viewPhone, setViewPhone] = useState('')
   const [phoneInput, setPhoneInput] = useState('')
+  const [orders, setOrders] = useState<Order[]>([])
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -83,13 +84,20 @@ export function MyOrders({ open, onClose }: { open: boolean; onClose: () => void
     setError('')
   }, [open, data.lastPhone])
 
-  const orders = useMemo(() => {
-    if (!viewPhone) return []
-    return data.orders
-      .filter((item) => normalizePhone(item.phone) === viewPhone)
-      .slice()
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  }, [data.orders, viewPhone])
+  useEffect(() => {
+    if (!open || !viewPhone) {
+      setOrders([])
+      return
+    }
+    let cancelled = false
+    void fetchOrdersForPhone(viewPhone).then((list) => {
+      if (cancelled) return
+      setOrders(list.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, viewPhone, fetchOrdersForPhone, data.orders])
 
   const active = orders.filter((item) => item.status !== 'done')
   const past = orders.filter((item) => item.status === 'done')
