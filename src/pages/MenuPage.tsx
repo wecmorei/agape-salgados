@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CartPanel, CartSheet } from '../components/CartSheet'
+import { activeOrderCount, MyOrders } from '../components/MyOrders'
 import { formatBRL } from '../seed'
 import { cartQty, cartTotals, useStore } from '../store'
 import type { Product } from '../types'
@@ -73,7 +74,9 @@ export function MenuPage() {
   const [categoryId, setCategoryId] = useState('all')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [startOnCheckout, setStartOnCheckout] = useState(false)
+  const [ordersOpen, setOrdersOpen] = useState(false)
   const totals = cartTotals(data)
+  const activeOrders = activeOrderCount(data.orders, data.lastPhone)
 
   useEffect(() => {
     document.title = data.settings.name
@@ -121,9 +124,15 @@ export function MenuPage() {
             <p>{data.settings.tagline}</p>
           </div>
         </div>
-        <span className={`badge ${data.settings.open ? '' : 'closed'}`}>
-          {data.settings.open ? 'Aberto' : 'Fechado'}
-        </span>
+        <div className="topbar-actions">
+          <span className={`badge ${data.settings.open ? '' : 'closed'}`}>
+            {data.settings.open ? 'Aberto' : 'Fechado'}
+          </span>
+          <button className="chip" type="button" onClick={() => setOrdersOpen(true)}>
+            Meus pedidos
+            {activeOrders > 0 && <span className="tab-count">{activeOrders}</span>}
+          </button>
+        </div>
       </header>
 
       <div className="search">
@@ -200,6 +209,8 @@ export function MenuPage() {
       )}
 
       <CartSheet open={sheetOpen} startOnCheckout={startOnCheckout} onClose={() => setSheetOpen(false)} />
+
+      <MyOrders open={ordersOpen} onClose={() => setOrdersOpen(false)} />
 
       <Link className="footer-link" to="/admin">
         Área da loja

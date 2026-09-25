@@ -664,6 +664,26 @@ textarea {
   gap: 10px;
 }
 
+.field-row.city-state {
+  grid-template-columns: 1fr 7.5rem;
+}
+
+.field-hint,
+.cep-status {
+  margin: -4px 0 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.cep-status.ok {
+  color: var(--ok);
+}
+
+.cep-status.warn {
+  color: var(--warn);
+}
+
 .change-box {
   margin-top: 12px;
   padding: 12px;
@@ -967,6 +987,149 @@ textarea {
   text-align: center;
   margin-top: 10px;
   font-size: 11px;
+}
+
+.topbar-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.topbar-actions .chip {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.link-btn {
+  border: 0;
+  background: none;
+  color: var(--accent-dark);
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.my-orders-phone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.my-orders-group {
+  margin-bottom: 18px;
+}
+
+.my-orders-title {
+  font-size: 0.95rem;
+  margin: 0 0 10px;
+}
+
+.my-order-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.my-order-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.my-order-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.my-order-items {
+  margin: 10px 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+}
+
+.my-order-address {
+  font-size: 0.85rem;
+  margin: 6px 0;
+}
+
+.my-order-total {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.order-track {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+
+.track-step {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding-bottom: 14px;
+}
+
+.track-step::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 16px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--line);
+}
+
+.track-step:last-child::before {
+  display: none;
+}
+
+.track-dot {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: #fff;
+}
+
+.track-step.done .track-dot {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+
+.track-step.active .track-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.track-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.track-text small {
+  color: var(--muted);
+}
+
+.track-step.todo .track-text strong {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 @media print {
