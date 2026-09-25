@@ -874,11 +874,7 @@ textarea {
 
 /* Cupom para impressora térmica (não fiscal, bobina 80mm) */
 .receipt-print {
-  position: fixed;
-  left: -10000px;
-  top: 0;
-  width: 80mm;
-  background: #fff;
+  display: none;
 }
 
 .receipt {
@@ -974,17 +970,14 @@ textarea {
 }
 
 @media print {
-  body * {
-    visibility: hidden;
-  }
-
-  .receipt-print,
-  .receipt-print * {
-    visibility: visible;
+  body > *:not(.receipt-print) {
+    display: none !important;
   }
 
   .receipt-print {
-    left: 0;
+    display: block;
+    width: 80mm;
+    background: #fff;
   }
 
   @page {

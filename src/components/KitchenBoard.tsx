@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   formatAddress,
   formatBRL,
@@ -158,15 +159,17 @@ export function KitchenBoard() {
         })}
       </div>
 
-      {printOrder && (
-        <div className="receipt-print" aria-hidden="true">
-          <OrderReceipt
-            order={printOrder}
-            products={data.products}
-            storeName={data.settings.name}
-          />
-        </div>
-      )}
+      {printOrder &&
+        createPortal(
+          <div className="receipt-print" aria-hidden="true">
+            <OrderReceipt
+              order={printOrder}
+              products={data.products}
+              storeName={data.settings.name}
+            />
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }
