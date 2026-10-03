@@ -56,6 +56,11 @@ type PlaceOrderInput = {
   changeFor: number | null
 }
 
+type RepeatOrderResult = {
+  added: number
+  skipped: number
+}
+
 type StoreContextValue = {
   data: StoreData
   ready: boolean
@@ -70,6 +75,8 @@ type StoreContextValue = {
   setQty: (productId: string, qty: number) => void
   setNote: (productId: string, note: string) => void
   clearCart: () => void
+  repeatOrder: (order: Order) => RepeatOrderResult
+  rememberPhone: (phone: string) => void
   resetCatalog: () => void
   lookupCustomer: (phone: string) => Promise<Customer | undefined>
   fetchOrdersForPhone: (phone: string) => Promise<Order[]>
@@ -340,6 +347,54 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ),
         })),
       clearCart: () => update((current) => ({ ...current, cart: [] })),
+      repeatOrder: (order) => {
+        const availableIds = new Set(
+          data.products.filter((product) => product.available).map((product) => product.id),
+        )
+        const cartByProduct = new Map<string, CartLine>()
+        let skipped = 0
+
+        for (const line of order.items) {
+          if (line.qty <= 0 || !availableIds.has(line.productId)) {
+            skipped += line.qty > 0 ? line.qty : 0
+            continue
+          }
+
+          const existing = cartByProduct.get(line.productId)
+          if (!existing) {
+            cartByProduct.set(line.productId, {
+              productId: line.productId,
+              qty: line.qty,
+              note: line.note ?? '',
+            })
+            continue
+          }
+
+          cartByProduct.set(line.productId, {
+            ...existing,
+            qty: existing.qty + line.qty,
+            note:
+              existing.note && line.note && existing.note !== line.note
+                ? `${existing.note}; ${line.note}`
+                : existing.note || line.note || '',
+          })
+        }
+
+        const cart = Array.from(cartByProduct.values())
+        const next = {
+          ...data,
+          cart,
+          lastPhone: normalizePhone(order.phone) || data.lastPhone,
+        }
+        persistCart(next)
+        setData(next)
+        return { added: cart.reduce((sum, line) => sum + line.qty, 0), skipped }
+      },
+      rememberPhone: (phone) =>
+        update((current) => ({
+          ...current,
+          lastPhone: normalizePhone(phone),
+        })),
       resetCatalog: () => {
         update((current) => {
           const seed = createSeed()

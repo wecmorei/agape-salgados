@@ -637,6 +637,16 @@ textarea {
   width: 100%;
 }
 
+.address-card {
+  display: grid;
+  gap: 4px;
+}
+
+.address-card small {
+  color: var(--accent-dark);
+  font-size: 0.78rem;
+}
+
 .address-card.selected,
 .pay-option.selected {
   border-color: var(--accent);
@@ -1159,6 +1169,10 @@ textarea {
   font-weight: 700;
   border-top: 1px solid var(--line);
   padding-top: 8px;
+}
+
+.reorder-btn {
+  margin-top: 10px;
 }
 
 .order-track {

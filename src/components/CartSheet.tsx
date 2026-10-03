@@ -40,7 +40,7 @@ export function CartSheet({
   onClose: () => void
   startOnCheckout?: boolean
 }) {
-  const { data, clearCart, lookupCustomer, placeOrder } = useStore()
+  const { data, clearCart, lookupCustomer, placeOrder, rememberPhone } = useStore()
   const totals = cartTotals(data)
   const [step, setStep] = useState<Step>('cart')
   const [phone, setPhone] = useState('')
@@ -146,7 +146,9 @@ export function CartSheet({
       return
     }
     setError('')
-    const found = (await lookupCustomer(normalizePhone(phone))) ?? null
+    const normalizedPhone = normalizePhone(phone)
+    rememberPhone(normalizedPhone)
+    const found = (await lookupCustomer(normalizedPhone)) ?? null
     setFoundCustomer(found)
     setReturning(Boolean(found))
     if (found && found.addresses.length > 0) {
@@ -223,6 +225,10 @@ export function CartSheet({
   }[step]
 
   const shownCepStatus = isValidZip(address.zip) ? cepStatus : 'idle'
+  const savedAddresses = returning && foundCustomer ? foundCustomer.addresses : []
+  const hasSavedAddresses = savedAddresses.length > 0
+  const showAddressForm = addingNew || !hasSavedAddresses
+  const hasRememberedPhone = isValidPhone(phone)
 
   return (
     <>
@@ -269,9 +275,13 @@ export function CartSheet({
               void goAddress()
             }}
           >
-            <p className="muted">
-              Com o mesmo número, na próxima compra o endereço volta preenchido.
-            </p>
+            {hasRememberedPhone ? (
+              <p className="welcome">Telefone já preenchido. Confirme para continuar ou altere se precisar.</p>
+            ) : (
+              <p className="muted">
+                Com o mesmo número, na próxima compra o endereço volta preenchido.
+              </p>
+            )}
             <label>
               Telefone com DDD
               <input
@@ -302,28 +312,27 @@ export function CartSheet({
               goPayment()
             }}
           >
-            {returning && foundCustomer && foundCustomer.addresses.length > 0 && (
+            {hasSavedAddresses && (
               <>
-                <p className="welcome">Encontramos seus dados. O endereço já veio preenchido — confirme ou adicione outro.</p>
-                {foundCustomer.addresses.length > 1 && (
-                  <div className="address-list">
-                    {foundCustomer.addresses.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={`address-card ${!addingNew && selectedId === item.id ? 'selected' : ''}`}
-                        onClick={() => {
-                          setSelectedId(item.id)
-                          fillSavedAddress(item)
-                          setAddingNew(false)
-                          setError('')
-                        }}
-                      >
-                        {formatAddress(item)}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <p className="welcome">Encontramos seus endereços salvos. O último usado já está selecionado.</p>
+                <div className="address-list">
+                  {savedAddresses.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`address-card ${!addingNew && selectedId === item.id ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedId(item.id)
+                        fillSavedAddress(item)
+                        setAddingNew(false)
+                        setError('')
+                      }}
+                    >
+                      <span>{formatAddress(item)}</span>
+                      {!addingNew && selectedId === item.id && <small>Selecionado</small>}
+                    </button>
+                  ))}
+                </div>
                 <button
                   className="btn ghost"
                   type="button"
@@ -335,100 +344,105 @@ export function CartSheet({
                     setError('')
                   }}
                 >
-                  Adicionar outro endereço
+                  Novo endereço
                 </button>
+                {addingNew && (
+                  <p className="muted">Preencha abaixo o novo endereço para salvar neste telefone.</p>
+                )}
               </>
             )}
 
-            <div className="address-form">
-              <label>
-                CEP
-                <input
-                  value={address.zip}
-                  onChange={(e) => {
-                    const zip = formatZip(e.target.value)
-                    if (zipDigits(zip).length < 8) lastCepLookup.current = ''
-                    setAddress({ ...address, zip })
-                  }}
-                  inputMode="numeric"
-                  autoComplete="postal-code"
-                  placeholder="00000-000"
-                  autoFocus={addingNew}
-                  maxLength={9}
-                />
-              </label>
-              {shownCepStatus === 'loading' && <p className="cep-status">Buscando endereço…</p>}
-              {shownCepStatus === 'ok' && (
-                <p className="cep-status ok">Endereço encontrado. Confira e informe o número.</p>
-              )}
-              {shownCepStatus === 'not-found' && (
-                <p className="cep-status warn">CEP não encontrado. Preencha o endereço manualmente.</p>
-              )}
-              {shownCepStatus === 'error' && (
-                <p className="cep-status warn">Não foi possível consultar o CEP. Preencha o endereço manualmente.</p>
-              )}
-              {shownCepStatus === 'idle' && (
-                <p className="field-hint">Ao preencher o CEP, rua, bairro, cidade e estado entram sozinhos.</p>
-              )}
-              <label>
-                Rua
-                <input
-                  value={address.street}
-                  onChange={(e) => setAddress({ ...address, street: e.target.value })}
-                  autoComplete="street-address"
-                />
-              </label>
-              <div className="field-row">
+            {showAddressForm && (
+              <div className="address-form">
                 <label>
-                  Número
+                  CEP
                   <input
-                    value={address.number}
-                    onChange={(e) => setAddress({ ...address, number: e.target.value })}
-                    autoComplete="address-line2"
+                    value={address.zip}
+                    onChange={(e) => {
+                      const zip = formatZip(e.target.value)
+                      if (zipDigits(zip).length < 8) lastCepLookup.current = ''
+                      setAddress({ ...address, zip })
+                    }}
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    placeholder="00000-000"
+                    autoFocus={addingNew}
+                    maxLength={9}
                   />
                 </label>
+                {shownCepStatus === 'loading' && <p className="cep-status">Buscando endereço…</p>}
+                {shownCepStatus === 'ok' && (
+                  <p className="cep-status ok">Endereço encontrado. Confira e informe o número.</p>
+                )}
+                {shownCepStatus === 'not-found' && (
+                  <p className="cep-status warn">CEP não encontrado. Preencha o endereço manualmente.</p>
+                )}
+                {shownCepStatus === 'error' && (
+                  <p className="cep-status warn">Não foi possível consultar o CEP. Preencha o endereço manualmente.</p>
+                )}
+                {shownCepStatus === 'idle' && (
+                  <p className="field-hint">Ao preencher o CEP, rua, bairro, cidade e estado entram sozinhos.</p>
+                )}
                 <label>
-                  Complemento
+                  Rua
                   <input
-                    value={address.complement}
-                    onChange={(e) => setAddress({ ...address, complement: e.target.value })}
-                    placeholder="Apto, bloco..."
+                    value={address.street}
+                    onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                    autoComplete="street-address"
                   />
                 </label>
+                <div className="field-row">
+                  <label>
+                    Número
+                    <input
+                      value={address.number}
+                      onChange={(e) => setAddress({ ...address, number: e.target.value })}
+                      autoComplete="address-line2"
+                    />
+                  </label>
+                  <label>
+                    Complemento
+                    <input
+                      value={address.complement}
+                      onChange={(e) => setAddress({ ...address, complement: e.target.value })}
+                      placeholder="Apto, bloco..."
+                    />
+                  </label>
+                </div>
+                <label>
+                  Bairro
+                  <input
+                    value={address.neighborhood}
+                    onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
+                  />
+                </label>
+                <div className="field-row city-state">
+                  <label>
+                    Cidade
+                    <input
+                      value={address.city}
+                      onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                      autoComplete="address-level2"
+                    />
+                  </label>
+                  <label>
+                    Estado
+                    <select
+                      value={address.state}
+                      onChange={(e) => setAddress({ ...address, state: e.target.value })}
+                      autoComplete="address-level1"
+                    >
+                      <option value="">UF</option>
+                      {BRAZILIAN_STATES.map((uf) => (
+                        <option key={uf} value={uf}>
+                          {uf}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </div>
-              <label>
-                Bairro
-                <input
-                  value={address.neighborhood}
-                  onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
-                />
-              </label>
-              <div className="field-row city-state">
-                <label>
-                  Cidade
-                  <input
-                    value={address.city}
-                    onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                    autoComplete="address-level2"
-                  />
-                </label>
-                <label>
-                  Estado
-                  <select
-                    value={address.state}
-                    onChange={(e) => setAddress({ ...address, state: e.target.value })}
-                    autoComplete="address-level1"
-                  >
-                    <option value="">UF</option>
-                    {BRAZILIAN_STATES.map((uf) => (
-                      <option key={uf} value={uf}>
-                        {uf}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </div>
+            )}
 
             {error && <p className="warn">{error}</p>}
             <div className="checkout-actions">

@@ -210,7 +210,14 @@ export function MenuPage() {
 
       <CartSheet open={sheetOpen} startOnCheckout={startOnCheckout} onClose={() => setSheetOpen(false)} />
 
-      <MyOrders open={ordersOpen} onClose={() => setOrdersOpen(false)} />
+      <MyOrders
+        open={ordersOpen}
+        onClose={() => setOrdersOpen(false)}
+        onRepeatOrder={() => {
+          setOrdersOpen(false)
+          openSheet(false)
+        }}
+      />
 
       <Link className="footer-link" to="/admin">
         Área da loja

@@ -69,12 +69,21 @@ function OrderItems({ order }: { order: Order }) {
   )
 }
 
-export function MyOrders({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { data, fetchOrdersForPhone } = useStore()
+export function MyOrders({
+  open,
+  onClose,
+  onRepeatOrder,
+}: {
+  open: boolean
+  onClose: () => void
+  onRepeatOrder: () => void
+}) {
+  const { data, fetchOrdersForPhone, repeatOrder } = useStore()
   const [viewPhone, setViewPhone] = useState('')
   const [phoneInput, setPhoneInput] = useState('')
   const [orders, setOrders] = useState<Order[]>([])
   const [error, setError] = useState('')
+  const [repeatError, setRepeatError] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -82,6 +91,7 @@ export function MyOrders({ open, onClose }: { open: boolean; onClose: () => void
     setViewPhone(known)
     setPhoneInput(formatPhone(known))
     setError('')
+    setRepeatError('')
   }, [open, data.lastPhone])
 
   useEffect(() => {
@@ -112,6 +122,37 @@ export function MyOrders({ open, onClose }: { open: boolean; onClose: () => void
     }
     setError('')
     setViewPhone(normalizePhone(phoneInput))
+  }
+
+  function hasRepeatableItems(order: Order) {
+    return order.items.some((line) =>
+      line.qty > 0 &&
+      data.products.some((product) => product.id === line.productId && product.available),
+    )
+  }
+
+  function handleRepeatOrder(order: Order) {
+    const result = repeatOrder(order)
+    if (result.added === 0) {
+      setRepeatError('Os itens desse pedido não estão disponíveis no cardápio agora.')
+      return
+    }
+    setRepeatError('')
+    onRepeatOrder()
+  }
+
+  function RepeatOrderButton({ order }: { order: Order }) {
+    const enabled = hasRepeatableItems(order)
+    return (
+      <button
+        className="btn ghost reorder-btn"
+        type="button"
+        disabled={!enabled}
+        onClick={() => handleRepeatOrder(order)}
+      >
+        {enabled ? 'Pedir de novo' : 'Itens indisponíveis'}
+      </button>
+    )
   }
 
   return (
@@ -164,6 +205,7 @@ export function MyOrders({ open, onClose }: { open: boolean; onClose: () => void
                 Trocar telefone
               </button>
             </p>
+            {repeatError && <p className="warn">{repeatError}</p>}
 
             {orders.length === 0 && (
               <p className="empty">
@@ -187,6 +229,7 @@ export function MyOrders({ open, onClose }: { open: boolean; onClose: () => void
                       <span>Total</span>
                       <span>{formatBRL(order.total)}</span>
                     </div>
+                    <RepeatOrderButton order={order} />
                   </article>
                 ))}
               </section>
@@ -207,6 +250,7 @@ export function MyOrders({ open, onClose }: { open: boolean; onClose: () => void
                       <span>Total</span>
                       <span>{formatBRL(order.total)}</span>
                     </div>
+                    <RepeatOrderButton order={order} />
                   </article>
                 ))}
               </section>
