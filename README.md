@@ -15,6 +15,19 @@ npm run dev
 
 - Cardápio: página inicial
 - Painel: `/admin` (PIN inicial `1234`)
+- Ponto: `/ponto`
+
+## Ponto
+
+Entrada, saída e intervalo ficam neste navegador. O intervalo não conta como hora trabalhada.
+
+O salário do mês é R$ 8.500,00. A carga horária começa em 220 h e pode ser alterada na tela.
+
+```
+valor a receber = horas trabalhadas × (8500 / carga horária mensal)
+```
+
+Exemplo: 110 h com carga de 220 h dão R$ 4.250,00.
 
 ## Painel
 

@@ -1,0 +1,410 @@
+.ponto {
+  width: min(880px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+.ponto-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.ponto-kicker,
+.ponto-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ponto h1 {
+  margin: 2px 0 0;
+  font-family: var(--serif);
+  font-size: clamp(40px, 7vw, 60px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+
+.ponto-month {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.ponto-top-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.ponto-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.ponto-back {
+  color: var(--accent-dark);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ponto-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 18px 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  font-weight: 700;
+}
+
+.ponto-status i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.ponto-status.trabalhando {
+  background: var(--ok-soft);
+  border-color: transparent;
+}
+
+.ponto-status.trabalhando i {
+  background: var(--ok);
+}
+
+.ponto-status.intervalo {
+  background: #f8efd8;
+  border-color: transparent;
+}
+
+.ponto-status.intervalo i {
+  background: var(--warn);
+}
+
+.ponto-status.trabalhando i,
+.ponto-status.intervalo i {
+  animation: ponto-pulse 1.6s ease-in-out infinite;
+}
+
+.ponto-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.ponto-btn {
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-weight: 700;
+  touch-action: manipulation;
+}
+
+.ponto-btn.primary {
+  background: var(--accent);
+  color: white;
+}
+
+.ponto-btn.saida {
+  background: var(--ink);
+  color: white;
+}
+
+.ponto-btn.secondary {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.ponto-btn:disabled {
+  background: #efe6de;
+  color: #9a8b82;
+  cursor: not-allowed;
+}
+
+.ponto-btn:focus-visible,
+.ponto-carga input:focus-visible,
+.ponto-undo:focus-visible,
+.ponto-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ponto-hint,
+.ponto-foot,
+.ponto-note,
+.ponto-empty,
+.ponto-carga small,
+.ponto-metric span,
+.ponto-formula {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ponto-hint,
+.ponto-error,
+.ponto-foot {
+  margin: 8px 0 0;
+}
+
+.ponto-error {
+  color: var(--accent-dark);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ponto-summary {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.ponto-hero,
+.ponto-metric,
+.ponto-carga,
+.ponto-day {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.ponto-hero {
+  padding: 18px 18px 16px;
+  background: var(--ink);
+  color: #fffaf5;
+}
+
+.ponto-hero .ponto-label,
+.ponto-formula {
+  color: #e7d3c6;
+}
+
+.ponto-money {
+  margin: 4px 0;
+  font-family: var(--serif);
+  font-size: clamp(42px, 8vw, 64px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+
+.ponto-formula {
+  margin: 0;
+}
+
+.ponto-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ponto-metric {
+  padding: 14px 16px;
+}
+
+.ponto-metric strong {
+  display: block;
+  margin-top: 6px;
+  font-size: clamp(22px, 4vw, 28px);
+  font-variant-numeric: tabular-nums;
+}
+
+.ponto-metric span {
+  display: block;
+  margin-top: 6px;
+}
+
+.ponto-carga {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  box-shadow: none;
+}
+
+.ponto-carga small {
+  display: block;
+  margin-top: 4px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+}
+
+.ponto-carga-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.ponto-carga input {
+  width: 96px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  padding: 10px 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ponto-carga input[aria-invalid='true'] {
+  border-color: var(--accent);
+}
+
+.ponto-days {
+  margin-top: 28px;
+}
+
+.ponto-days h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.ponto-day {
+  padding: 14px 16px 10px;
+  box-shadow: none;
+}
+
+.ponto-day + .ponto-day {
+  margin-top: 10px;
+}
+
+.ponto-day header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ponto-day h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.ponto-day header strong {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ponto-day header em {
+  color: var(--ok);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.ponto-day ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ponto-day li {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.ponto-day time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.ponto-empty,
+.ponto-note {
+  margin: 8px 0;
+}
+
+.ponto-undo {
+  margin-top: 16px;
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ponto-undo:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (min-width: 800px) {
+  .ponto-actions {
+    flex-direction: row;
+  }
+
+  .ponto-actions .ponto-btn {
+    flex: 1;
+  }
+
+  .ponto-summary {
+    grid-template-columns: 1.4fr 0.9fr;
+    align-items: stretch;
+  }
+
+  .ponto-side {
+    grid-template-columns: 1fr;
+  }
+
+  .ponto-hero {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 560px) {
+  .ponto {
+    width: min(100% - 20px, 880px);
+    padding-top: 18px;
+  }
+
+  .ponto-clock {
+    font-size: 18px;
+  }
+
+  .ponto-carga {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ponto-status i {
+    animation: none;
+  }
+}
+
+@keyframes ponto-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
