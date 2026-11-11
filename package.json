@@ -1,5 +1,5 @@
 {
-  "name": "cardapio-online",
+  "name": "ponto",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,13 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "check:ponto": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/ponto/calc.check.ts",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.116.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.3"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

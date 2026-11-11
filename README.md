@@ -1,24 +1,20 @@
-# Ágape Salgados — cardápio online
+# Ponto
 
-Cardápio de delivery com carrinho, checkout e painel da cozinha.
+Registro de entrada, saída e intervalo neste navegador. Não há servidor.
 
-Os pedidos e o cardápio ficam no Supabase (tempo real entre o celular do cliente e o painel). O carrinho fica só neste navegador.
+O salário do mês é R$ 8.500,00. A carga horária começa em 220 h e pode ser alterada na tela.
 
-## Como abrir localmente
+```
+valor a receber = horas trabalhadas × (8500 / carga horária mensal)
+```
 
-Copie `.env.example` para `.env.local` e preencha a URL e a chave anônima do projeto.
+O intervalo não conta como hora trabalhada. Os horários seguem America/Sao_Paulo.
+
+## Como abrir
 
 ```bash
 npm install
 npm run dev
 ```
 
-- Cardápio: página inicial
-- Painel: `/admin` (PIN inicial `1234`)
-
-## Painel
-
-- Fila de pedidos (preparo e entrega)
-- Incluir, editar e pausar itens
-- Organizar categorias
-- Nome da loja, taxa de entrega, pedido mínimo e PIN
+A página inicial é o ponto: http://localhost:5173/
